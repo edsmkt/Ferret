@@ -6,7 +6,7 @@ A simple, open-source web research agent. Send a prompt + JSON Schema, get struc
 
 **You need four things:**
 - A **Scraping API** (or just use Cloudflare's free native fetch)
-- A **SERP API** (Google search)
+- A **SERP API** (search engine — Google, Bing, Exa, Yandex, etc.)
 - An **LLM API** (any provider with tool calling)
 - A **Cloudflare account** (free tier works)
 
