@@ -1,6 +1,6 @@
 # AGENT.md — Customization Guide
 
-This file is for AI coding agents (Claude Code, Cursor, Copilot, etc.) helping you customize Ferret. It explains the architecture so your agent can swap providers without breaking the tool-calling loop.
+This file is for AI coding agents (Claude Code, Cursor, Copilot, etc.) helping you customize Ferret. It explains the architecture so your agent can swap any provider without breaking the tool-calling loop.
 
 ## Architecture
 
@@ -8,38 +8,97 @@ This file is for AI coding agents (Claude Code, Cursor, Copilot, etc.) helping y
 worker.js (single file, ~350 lines)
 │
 ├── Entry point: export default { fetch() }
-│   └── Validates input, calls research()
+│   └── Validates input (needs "prompt"), calls research()
 │
 ├── research() — Main agent loop
 │   ├── Builds system prompt from user's prompt + schema
-│   ├── Calls DeepSeek with tools: [fetch_page, web_search]
-│   ├── Loops: if DeepSeek calls a tool → execute → feed result back
-│   ├── Stops when: DeepSeek returns JSON (no tool calls) or MAX_FETCHES hit
-│   └── Returns { result, agent_log, scrape_credits_total }
+│   ├── Calls LLM with tools: [fetch_page, web_search]
+│   ├── Loops: if LLM calls a tool → execute it → feed result back → call LLM again
+│   ├── Stops when: LLM returns JSON (no tool calls) or MAX_FETCHES hit
+│   └── Returns { result, agent_log, scrape_credits_total, model }
 │
 ├── execTool() — Tool dispatcher
 │   ├── "web_search" → webSearch()
 │   └── "fetch_page" → fetchPage()
 │
-├── webSearch() — Google search
-│   └── Currently: RapidAPI Google Search
+├── webSearch() — Google search (currently RapidAPI, swappable)
 │
 ├── fetchPage() — Tiered page fetching
-│   ├── Tier 1: nativeFetch() — free CF edge fetch
+│   ├── Tier 1: nativeFetch() — free Cloudflare edge fetch
 │   ├── Tier 2: cfBrowserFetch() — CF Browser Rendering API
 │   └── Tier 3-5: scrapeDo() — scrape.do standard/render/super
 │
-├── deepseek() — LLM API call with retry
+├── LLM call function — currently deepseek(), swappable to any provider
 │
 └── Schema rendering (renderSchema, renderSchemaField)
     └── Converts JSON Schema to human-readable field descriptions for the LLM
 ```
 
+## Three things you can swap
+
+Everything is in `worker.js`. Each swap is one function replacement:
+
+| Component | Function to replace | Contract |
+|-----------|-------------------|----------|
+| **Search** | `webSearch()` | Takes a query, returns numbered text results |
+| **Scraping** | `fetchPage()` cascade | Takes a URL, returns plain text |
+| **LLM** | `deepseek()` | Takes OpenAI-compatible payload, returns `choices[0].message` |
+
+---
+
+## How to Swap the LLM
+
+Ferret works with **any LLM that supports tool calling and JSON output** via an OpenAI-compatible API. The `deepseek()` function is a simple HTTP call — change the URL and API key for any provider.
+
+### Requirements
+
+The LLM must support:
+1. **Tool calling** — `tools` parameter with function definitions, model returns `tool_calls`
+2. **JSON mode** — `response_format: { type: "json_object" }` for the final answer
+
+### Drop-in replacements
+
+Every provider below uses the same OpenAI-compatible format. To swap, change the URL, header, and env var name:
+
+```js
+// The function signature stays the same — only the internals change
+async function llmCall(payload, env) {
+  for (let a = 0; a < 4; a++) {
+    try {
+      const r = await fetch(LLM_URL, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${env.YOUR_API_KEY}`, "content-type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!r.ok) throw new Error("llm " + r.status);
+      return await r.json();
+    } catch (e) {
+      if (a === 3) throw e;
+      await new Promise(s => setTimeout(s, 2 ** a * 500));
+    }
+  }
+}
+```
+
+| Provider | URL | API Key Env Var | Recommended Model |
+|----------|-----|-----------------|-------------------|
+| DeepSeek (default) | `https://api.deepseek.com/chat/completions` | `DEEPSEEK_API_KEY` | `deepseek-chat` |
+| OpenAI | `https://api.openai.com/v1/chat/completions` | `OPENAI_API_KEY` | `gpt-4o-mini` |
+| Groq | `https://api.groq.com/openai/v1/chat/completions` | `GROQ_API_KEY` | `llama-3.3-70b-versatile` |
+| Together | `https://api.together.xyz/v1/chat/completions` | `TOGETHER_API_KEY` | `meta-llama/Llama-3.3-70B-Instruct-Turbo` |
+| OpenRouter | `https://openrouter.ai/api/v1/chat/completions` | `OPENROUTER_API_KEY` | `anthropic/claude-sonnet-4` |
+| Mistral | `https://api.mistral.ai/v1/chat/completions` | `MISTRAL_API_KEY` | `mistral-large-latest` |
+| Google Gemini | `https://generativelanguage.googleapis.com/v1beta/openai/chat/completions` | `GEMINI_API_KEY` | `gemini-2.5-flash` |
+
+After swapping, update `MODEL` in `wrangler.toml` and rename `deepseek()` calls to `llmCall()` in `research()`.
+
+---
+
 ## How to Swap the Search Provider
 
 Replace the `webSearch()` function. It must:
 1. Accept `(query, env, n, log)` — query string, env bindings, max results, agent log array
-2. Return a string of search results (the LLM reads this as text)
+2. Return a **string** of search results (the LLM reads this as plain text)
 3. Push a log entry to `log` with `{ step: "web_search", query, via, status, cost }`
 
 ### Current implementation (RapidAPI)
@@ -58,11 +117,11 @@ async function webSearch(q, env, n = 6, log = null) {
       input: { q, hl: "en", gl: "us" },
     }),
   });
-  // ... parse organic_results, format as text
+  // ... parse organic_results, format as numbered text list
 }
 ```
 
-### To swap to Serper.dev
+### Drop-in: Serper.dev
 
 ```js
 async function webSearch(q, env, n = 6, log = null) {
@@ -89,9 +148,7 @@ async function webSearch(q, env, n = 6, log = null) {
 }
 ```
 
-Then add `SERPER_API_KEY` to `.dev.vars` and `wrangler secret put SERPER_API_KEY`.
-
-### To swap to Scrapingdog
+### Drop-in: Scrapingdog
 
 ```js
 async function webSearch(q, env, n = 6, log = null) {
@@ -117,6 +174,8 @@ async function webSearch(q, env, n = 6, log = null) {
 
 The return value is **plain text** that gets fed into the LLM's conversation. Format it as a numbered list with title, URL, and snippet. The LLM uses the URLs to decide what to `fetch_page` next.
 
+---
+
 ## How to Swap the Page Scraper
 
 The `fetchPage()` function is a cascade. To add or replace a tier, edit `fetchPage()`:
@@ -141,7 +200,7 @@ Each scraper function must:
 2. Return a **text string** (stripped of HTML) or empty string `""` if it failed
 3. Push a log entry: `{ step: "fetch_page", url, via: "your-scraper", status, cost, chars }`
 
-### To add ScrapingBee
+### Drop-in: ScrapingBee
 
 ```js
 async function scrapingBeeFetch(url, env, log) {
@@ -168,47 +227,40 @@ async function scrapingBeeFetch(url, env, log) {
 }
 ```
 
-## How to Swap the LLM
-
-Ferret works with **any LLM that supports tool calling and JSON output** via an OpenAI-compatible API. This includes DeepSeek, OpenAI, Anthropic (via OpenRouter), Google Gemini, Groq, Together, Mistral, and local models served through Ollama or vLLM with an OpenAI-compatible wrapper.
-
-Replace `deepseek()` and update the payload format. The function must:
-1. Accept an OpenAI-compatible chat completion payload
-2. Return the response JSON with `choices[0].message`
-3. Support `tools` (function calling) — so the agent can call `web_search` and `fetch_page`
-4. Support `response_format: { type: "json_object" }` — so the final answer is valid JSON
-
-### To use OpenAI
+### Drop-in: Zenrows
 
 ```js
-async function llmCall(payload, env) {
-  for (let a = 0; a < 4; a++) {
-    try {
-      const r = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: { "Authorization": `Bearer ${env.OPENAI_API_KEY}`, "content-type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      if (!r.ok) throw new Error("openai " + r.status);
-      return await r.json();
-    } catch (e) {
-      if (a === 3) throw e;
-      await new Promise(s => setTimeout(s, 2 ** a * 500));
+async function zenrowsFetch(url, env, log) {
+  try {
+    const r = await fetch(
+      `https://api.zenrows.com/v1/?apikey=${env.ZENROWS_KEY}&url=${encodeURIComponent(url)}`
+    );
+    if (!r.ok) {
+      if (log) log.push({ step: "fetch_page", url, via: "zenrows", status: r.status, cost: 0, note: "failed" });
+      return "";
     }
+    const html = await r.text();
+    const text = htmlToText(html);
+    if (text.length > 100) {
+      if (log) log.push({ step: "fetch_page", url, via: "zenrows", status: r.status, cost: 1, chars: text.length });
+      return text;
+    }
+    return "";
+  } catch (e) {
+    if (log) log.push({ step: "fetch_page", url, via: "zenrows", status: 0, error: String(e).slice(0, 80) });
+    return "";
   }
 }
 ```
 
-Then update the `MODEL` env var to `gpt-4o-mini` or whatever model you want, and rename `deepseek()` calls to `llmCall()`.
-
-DeepSeek uses the OpenAI-compatible API format, so most providers (OpenAI, Groq, Together, OpenRouter) are drop-in replacements — just change the URL and API key.
+---
 
 ## Environment Variables Reference
 
 | Variable | Used By | Required |
 |----------|---------|----------|
-| `DEEPSEEK_API_KEY` | `deepseek()` | Yes |
-| `RAPIDAPI_KEY` | `webSearch()` | Yes (or swap provider) |
+| `DEEPSEEK_API_KEY` | `deepseek()` | Yes (or swap LLM) |
+| `RAPIDAPI_KEY` | `webSearch()` | Yes (or swap search) |
 | `SCRAPE_DO_TOKEN` | `scrapeDo()` | No (fallback scraper) |
 | `CF_ACCOUNT_ID` | `cfBrowserFetch()` | No (CF Browser Rendering) |
 | `CF_API_TOKEN` | `cfBrowserFetch()` | No (CF Browser Rendering) |
@@ -216,3 +268,5 @@ DeepSeek uses the OpenAI-compatible API format, so most providers (OpenAI, Groq,
 | `MODEL` | `research()` | No (default: deepseek-chat) |
 | `MAX_FETCHES` | `research()` | No (default: 8) |
 | `MAX_TOKENS` | `research()` | No (default: 4000) |
+
+When you swap a provider, add its API key as a new env var and update the function to read from `env.YOUR_NEW_KEY`.
