@@ -2,6 +2,72 @@
 
 This file is for AI coding agents (Claude Code, Cursor, Copilot, etc.) helping you customize Ferret. It explains the architecture so your agent can swap any provider without breaking the tool-calling loop.
 
+## Setup Guide (for helping users deploy)
+
+When a user asks you to help them set up Ferret, walk them through these steps:
+
+### 1. Cloudflare account + Wrangler
+
+```bash
+# Install Wrangler CLI
+npm install -g wrangler
+
+# Login (opens browser)
+wrangler login
+
+# Verify — this shows account ID
+wrangler whoami
+```
+
+Account ID is needed for Browser Rendering (optional). It's in the `wrangler whoami` output or the dashboard URL: `dash.cloudflare.com/<account-id>/...`
+
+### 2. Get API keys
+
+The user needs at minimum:
+- **LLM API key** — from DeepSeek, OpenRouter, OpenAI, Groq, Together, or Mistral. See the LLM swap table below for URLs.
+- **Search API key** — from RapidAPI. Sign up at rapidapi.com, subscribe to a Google Search provider, get the key from Apps → default-application → Authorization.
+
+Optional:
+- **scrape.do token** — sign up at scrape.do, free tier gives 1,000 requests for testing
+- **CF Browser Rendering** — requires Workers paid plan ($5/mo). Create a custom API token at Cloudflare dashboard → My Profile → API Tokens with "Account → Browser Rendering → Edit" permission.
+
+### 3. Configure secrets
+
+```bash
+# Create .dev.vars for local development
+cat > .dev.vars << 'EOF'
+DEEPSEEK_API_KEY=sk-your-key
+RAPIDAPI_KEY=your-rapidapi-key
+SCRAPE_DO_TOKEN=your-token
+EOF
+
+# For production, use wrangler secret put:
+wrangler secret put DEEPSEEK_API_KEY
+wrangler secret put RAPIDAPI_KEY
+wrangler secret put SCRAPE_DO_TOKEN
+wrangler secret put WORKER_AUTH          # optional — protect the endpoint
+```
+
+### 4. Deploy
+
+```bash
+# Test locally first
+wrangler dev
+
+# Deploy to Cloudflare edge
+wrangler deploy
+```
+
+The worker URL will be `https://ferret.<subdomain>.workers.dev`. Test with:
+
+```bash
+curl -X POST https://ferret.<subdomain>.workers.dev \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "What does Cloudflare do?", "schema": {"answer": "string"}}'
+```
+
+---
+
 ## Architecture
 
 ```

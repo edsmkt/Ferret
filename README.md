@@ -46,6 +46,47 @@ Page fetching cascades through 5 tiers to minimize cost:
 
 Most pages resolve at tier 1. scrape.do is rarely needed.
 
+## Prerequisites
+
+You need three things:
+
+### 1. Cloudflare account (free)
+
+1. Sign up at [cloudflare.com](https://dash.cloudflare.com/sign-up)
+2. Install Wrangler (Cloudflare's CLI):
+   ```bash
+   npm install -g wrangler
+   ```
+3. Log in:
+   ```bash
+   wrangler login
+   ```
+4. Find your **Account ID** — run `wrangler whoami` or find it in the Cloudflare dashboard URL: `dash.cloudflare.com/<account-id>/...`
+
+The free Workers plan gives you 100,000 requests/day. Paid plan ($5/mo) unlocks higher limits and Browser Rendering.
+
+### 2. LLM API key
+
+Get an API key from any OpenAI-compatible provider:
+
+| Provider | Sign up | Cost |
+|----------|---------|------|
+| [DeepSeek](https://platform.deepseek.com/) (default) | platform.deepseek.com | ~$0.14/M input, $0.28/M output |
+| [OpenRouter](https://openrouter.ai/) | openrouter.ai | Varies by model, many free models |
+| [OpenAI](https://platform.openai.com/) | platform.openai.com | ~$0.15/M input (gpt-4o-mini) |
+| [Groq](https://console.groq.com/) | console.groq.com | Free tier available |
+| [Together](https://api.together.xyz/) | api.together.xyz | ~$0.18/M input (Llama 3.3 70B) |
+
+If you use a provider other than DeepSeek, see [AGENT.md](AGENT.md) to swap the URL (one line change).
+
+### 3. Search API key
+
+Get a RapidAPI key for Google Search:
+
+1. Sign up at [rapidapi.com](https://rapidapi.com/)
+2. Subscribe to one of the [search providers](#rapidapi-providers) listed below
+3. Your API key is in the RapidAPI dashboard under **Apps → default-application → Authorization**
+
 ## Quick Start
 
 ```bash
@@ -56,19 +97,47 @@ cd Ferret
 echo "DEEPSEEK_API_KEY=sk-your-key" > .dev.vars
 echo "RAPIDAPI_KEY=your-rapidapi-key" >> .dev.vars
 
-# Optional (fallback scraping)
+# Optional (fallback scraping — see scrape.do pricing below)
 echo "SCRAPE_DO_TOKEN=your-token" >> .dev.vars
-
-# Optional (Cloudflare Browser Rendering)
-echo "CF_ACCOUNT_ID=your-account-id" >> .dev.vars
-echo "CF_API_TOKEN=your-cf-token" >> .dev.vars
 
 # Run locally
 wrangler dev
 
-# Deploy
+# Deploy to Cloudflare
 wrangler deploy
 ```
+
+After deploying, your worker runs at `https://ferret.<your-subdomain>.workers.dev`.
+
+### Setting secrets for production
+
+Local development reads from `.dev.vars`. For production, set secrets via Wrangler:
+
+```bash
+wrangler secret put DEEPSEEK_API_KEY
+wrangler secret put RAPIDAPI_KEY
+wrangler secret put SCRAPE_DO_TOKEN        # optional
+wrangler secret put WORKER_AUTH            # optional — protect your endpoint
+```
+
+### Optional: Cloudflare Browser Rendering
+
+This enables Tier 2 page fetching — a headless browser on Cloudflare's edge for JS-heavy sites. Requires the Workers paid plan ($5/mo).
+
+1. Go to **Cloudflare dashboard → My Profile → API Tokens → Create Token**
+2. Create a **Custom Token** with the permission: **Account → Browser Rendering → Edit**
+3. Set the secrets:
+   ```bash
+   # For local dev, add to .dev.vars:
+   echo "CF_ACCOUNT_ID=your-account-id" >> .dev.vars
+   echo "CF_API_TOKEN=your-token" >> .dev.vars
+
+   # For production:
+   wrangler secret put CF_ACCOUNT_ID
+   wrangler secret put CF_API_TOKEN
+   ```
+
+If not configured, Ferret simply skips this tier — native fetch → scrape.do still works.
 
 ## API
 
