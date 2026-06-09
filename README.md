@@ -271,9 +271,9 @@ These aren't traditional SERP scrapers — they're AI-native search APIs that re
 
 | Provider | Pricing | Free Tier | Notes |
 |----------|---------|-----------|-------|
-| [Exa](https://exa.ai/pricing) | From $0.10/1K searches | 1,000 free searches/mo | Neural search engine. Returns clean content, not just links. Great for finding similar companies or specific content types. |
-| [Tavily](https://tavily.com/#pricing) | From $0.05/1K searches | 1,000 free searches/mo | Built for AI agents. Returns pre-extracted content with each result — less need for follow-up page fetches. |
-| [Jina AI Reader](https://jina.ai/reader/) | From $0.02/1K pages | Free tier available | Not a search engine — converts any URL to clean markdown. Use as a `fetch_page` replacement or alongside search. `r.jina.ai/<url>` returns markdown directly. |
+| [Exa](https://exa.ai/pricing) | $7/1K searches, $1/1K pages | 1,000 free requests/mo | Neural search engine. Returns clean content, not just links. Great for finding similar companies or specific content types. |
+| [Tavily](https://tavily.com/pricing) | $8/1K credits (PAYG) | 1,000 free credits/mo | Built for AI agents. Returns pre-extracted content with each result — less need for follow-up page fetches. |
+| [Jina AI Reader](https://jina.ai/reader/) | Token-based (10M free tokens) | Free without API key (20 RPM) | Not a search engine — converts any URL to clean markdown. Use as a `fetch_page` replacement or alongside search. `r.jina.ai/<url>` returns markdown directly. |
 
 To swap providers, give [AGENT.md](AGENT.md) to your coding agent (Claude Code, Codex, Cursor, etc.) and ask it to swap to your preferred provider. It has the architecture map, contracts, and drop-in code for each component.
 
