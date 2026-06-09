@@ -185,10 +185,10 @@ Ferret uses RapidAPI Google Search by default. Here are providers ranked by cost
 
 | Provider | Subs | Latency | Uptime | Rate Limit | 100K Cost | Per 1K | Notes |
 |----------|------|---------|--------|------------|-----------|--------|-------|
-| ScraperLink | 628 | 3,914ms | 100% | 1 req/s | **$20** | **$0.04** | Cheapest but slow, 5s per request. 1 req/s rate limit. |
-| Winbay Tech | 180 | 6,501ms | 100% | 10 req/s | **$10** | **$0.10** | Cheap. Low price plan. Bad latency. But 10 req/s rate limit. |
-| Scrappa | 221 | 739ms | 100% | 1 req/s | **$25** | **$0.25** | Good speed, but 1 req/s rate limit. |
-| FlyByAPIs | 83 | 435ms | 100% | 10 req/s | **$50** | **$0.50** | Good speed, but 2x Scrappa's cost. But 10 req/s rate limit. |
+| [ScraperLink](https://rapidapi.com/scraperlink-MN3CUx-kE/api/google-search116/pricing) | 628 | 3,914ms | 100% | 1 req/s | **$20** | **$0.04** | Cheapest but slow, 5s per request. 1 req/s rate limit. |
+| [Winbay Tech](https://rapidapi.com/winbay-tech-ai/api/google-search122/pricing) | 180 | 6,501ms | 100% | 10 req/s | **$10** | **$0.10** | Cheap. Low price plan. Bad latency. But 10 req/s rate limit. |
+| [Scrappa](https://rapidapi.com/scrappa/api/unlimited-google-search1/pricing) | 221 | 739ms | 100% | 1 req/s | **$25** | **$0.25** | Good speed, but 1 req/s rate limit. |
+| [FlyByAPIs](https://rapidapi.com/flybyapi1/api/google-serp-search-api/pricing) | 83 | 435ms | 100% | 10 req/s | **$50** | **$0.50** | Good speed, but 2x Scrappa's cost. But 10 req/s rate limit. |
 
 ### Other Providers
 
