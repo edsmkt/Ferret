@@ -1,10 +1,10 @@
 # Ferret
 
-Simple, open-source Claygent alternative. Deploy a web research agent on Cloudflare Workers.
+A simple, open-source web research agent you can call from Claude Code, Codex, Cursor, or any AI agent session. Runs on Cloudflare Workers.
 
 Send a prompt + JSON Schema, get structured data back. Ferret searches Google, scrapes websites, and uses any LLM with tool calling (DeepSeek, GPT-4o, Claude, Gemini, Llama — anything OpenAI-compatible) to return exactly the JSON you asked for.
 
-Works as a Clay HTTP Request column, n8n webhook target, or standalone API.
+Works as an API endpoint for AI agents, a Clay HTTP Request column, an n8n webhook target, or anything that can POST JSON.
 
 ## Why
 
