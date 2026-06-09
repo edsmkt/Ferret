@@ -297,6 +297,14 @@ Ferret uses native Cloudflare fetch first (free). These are fallback options for
 
 Note: JS rendering (`render=true`) costs 5 credits per call, super mode costs 25 credits. Most pages resolve via free native fetch — scrape.do is rarely needed.
 
+#### Other Scraping Options
+
+| Provider | Pricing | Notes |
+|----------|---------|-------|
+| [Crawl4AI](https://github.com/unclecode/crawl4ai) | Free (open source) | Self-hosted async web crawler. Returns clean markdown. Run it on your own server and point `fetchPage()` at it. |
+| [Spider.cloud](https://spider.cloud/) | From $0.10/1K pages | Fast managed scraper with JS rendering, anti-bot bypass, and markdown output. Good drop-in for scrape.do. |
+| [Jina AI Reader](https://jina.ai/reader/) | Free tier available | `r.jina.ai/<url>` returns any page as clean markdown — zero config, works as a one-liner `fetch_page` replacement. |
+
 ## Cost Comparison
 
 ### Claygent (Clay)
