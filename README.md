@@ -1,6 +1,6 @@
 # Ferret
 
-Open-source Claygent alternative. Deploy a web research agent on Cloudflare Workers.
+Simple, open-source Claygent alternative. Deploy a web research agent on Cloudflare Workers.
 
 Send a prompt + JSON Schema, get structured data back. Ferret searches Google, scrapes websites, and uses any LLM with tool calling (DeepSeek, GPT-4o, Claude, Gemini, Llama — anything OpenAI-compatible) to return exactly the JSON you asked for.
 
