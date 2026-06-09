@@ -271,6 +271,16 @@ Ferret uses RapidAPI Google Search by default. Here are providers ranked by cost
 | [SearchCans](https://www.searchcans.com/pricing/) (PAYG) | $99 Starter | $75 | **$0.75** | 1-1.5s | PAYG, credits valid 6 months. Zero independent reviews |
 | [Serper.dev](https://serper.dev/pricing) (PAYG) | $50 | $100 | **$1.00** | 1.83-2.87s | PAYG, credits valid 6 months. Gets cheaper at 500K+ ($0.50/1K) |
 
+### AI-Powered Search & Retrieval
+
+These aren't traditional SERP scrapers — they're AI-native search APIs that return cleaner, more relevant results. Good alternatives if you want higher quality over raw Google results.
+
+| Provider | Pricing | Free Tier | Notes |
+|----------|---------|-----------|-------|
+| [Exa](https://exa.ai/pricing) | From $0.10/1K searches | 1,000 free searches/mo | Neural search engine. Returns clean content, not just links. Great for finding similar companies or specific content types. |
+| [Tavily](https://tavily.com/#pricing) | From $0.05/1K searches | 1,000 free searches/mo | Built for AI agents. Returns pre-extracted content with each result — less need for follow-up page fetches. |
+| [Jina AI Reader](https://jina.ai/reader/) | From $0.02/1K pages | Free tier available | Not a search engine — converts any URL to clean markdown. Use as a `fetch_page` replacement or alongside search. `r.jina.ai/<url>` returns markdown directly. |
+
 To swap providers, see [AGENT.md](AGENT.md) for instructions on replacing the search and scraping functions.
 
 ### Scraping Providers (page fetching fallback)
