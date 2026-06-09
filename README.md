@@ -52,7 +52,7 @@ Most pages resolve at tier 1. scrape.do is rarely needed.
 git clone https://github.com/edsmkt/Ferret.git
 cd Ferret
 
-# Set your secrets
+# Set your secrets (LLM API — works with any OpenAI-compatible provider)
 echo "DEEPSEEK_API_KEY=sk-your-key" > .dev.vars
 echo "RAPIDAPI_KEY=your-rapidapi-key" >> .dev.vars
 
@@ -162,7 +162,7 @@ x-worker-key: your-secret-key
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `DEEPSEEK_API_KEY` | Yes | DeepSeek API key |
+| `DEEPSEEK_API_KEY` | Yes | LLM API key. Ships with DeepSeek but works with any OpenAI-compatible provider (OpenRouter, OpenAI, Groq, Together, Mistral) — just swap the URL in `worker.js`. See [AGENT.md](AGENT.md). |
 | `RAPIDAPI_KEY` | Yes | RapidAPI key for Google Search |
 | `SCRAPE_DO_TOKEN` | No | scrape.do token (fallback scraping) |
 | `CF_ACCOUNT_ID` | No | Cloudflare account ID (Browser Rendering) |
@@ -173,7 +173,7 @@ x-worker-key: your-secret-key
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `MODEL` | `deepseek-chat` | DeepSeek model to use |
+| `MODEL` | `deepseek-chat` | LLM model to use |
 | `MAX_FETCHES` | `8` | Max tool calls per request |
 | `MAX_TOKENS` | `4000` | Max LLM output tokens |
 
