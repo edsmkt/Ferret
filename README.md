@@ -19,7 +19,7 @@ POST { prompt, schema }
         │
         ▼
    ┌─────────┐
-   │ DeepSeek │──── web_search (RapidAPI Google) ───► Google results
+   │ DeepSeek │──── web_search (search engine) ───► search results
    │  agent   │──── fetch_page ───► native fetch ───► CF Browser ───► scraping API
    │  loop    │
    └────┬─────┘
