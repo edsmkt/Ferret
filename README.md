@@ -2,7 +2,7 @@
 
 Get the Claygent experience with your existing stack, outside of Clay.
 
-A simple, open-source web research agent. Send a prompt + JSON Schema, get structured data back. Runs on Cloudflare Workers.
+A simple, open-source web research agent. Send a prompt + JSON Schema, get structured data back. Runs on Cloudflare Workers. Call it from anywhere — AI coding sessions, Clay HTTP Request columns, n8n, Make, or any tool that can POST JSON.
 
 **You need four things:**
 - A **Scraping API** (or just use Cloudflare's free native fetch)
