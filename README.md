@@ -1,18 +1,16 @@
 # Ferret
 
-A simple, open-source web research agent you can call from Claude Code, Codex, Cursor, or any AI agent session. Runs on Cloudflare Workers.
+Get the Claygent experience with your existing stack, outside of Clay.
 
-Send a prompt + JSON Schema, get structured data back. Ferret searches Google, scrapes websites, and uses any LLM with tool calling (DeepSeek, GPT-4o, Claude, Gemini, Llama — anything OpenAI-compatible) to return exactly the JSON you asked for.
+A simple, open-source web research agent. Send a prompt + JSON Schema, get structured data back. Runs on Cloudflare Workers.
 
-Works as an API endpoint for AI agents, a Clay HTTP Request column, an n8n webhook target, or anything that can POST JSON.
+**You need four things:**
+- A **Scraping API** (or just use Cloudflare's free native fetch)
+- A **SERP API** (Google search)
+- An **LLM API** (any provider with tool calling)
+- A **Cloudflare account** (free tier works)
 
-## Why
-
-Ferret does the same thing on your own infrastructure:
-- **Any LLM with tool calling + JSON mode** — DeepSeek, GPT-4o, Claude, Gemini, Llama, Mistral, or any OpenAI-compatible API
-- **Native Cloudflare fetch** for page scraping (free)
-- **Your own search API** (from $0.04/1K searches)
-- **Fully open** — swap any provider, model, or scraper
+Point your coding agent (Claude Code, Codex, Cursor) to [AGENT.md](AGENT.md) and tell it to fit Ferret to your stack.
 
 ## How It Works
 
