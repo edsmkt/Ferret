@@ -8,8 +8,6 @@ Works as a Clay HTTP Request column, n8n webhook target, or standalone API.
 
 ## Why
 
-Claygent charges 2 Clay credits per row. If you're running 10,000 rows, that's 20,000 credits gone on research alone.
-
 Ferret does the same thing on your own infrastructure:
 - **Any LLM with tool calling + JSON mode** — DeepSeek, GPT-4o, Claude, Gemini, Llama, Mistral, or any OpenAI-compatible API
 - **Native Cloudflare fetch** for page scraping (free)
