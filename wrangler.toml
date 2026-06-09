@@ -1,0 +1,16 @@
+name = "ferret"
+main = "worker.js"
+compatibility_date = "2024-11-01"
+
+[vars]
+MODEL = "deepseek-chat"
+MAX_FETCHES = "8"
+MAX_TOKENS = "4000"
+
+# Secrets (set via wrangler secret put):
+#   wrangler secret put DEEPSEEK_API_KEY
+#   wrangler secret put RAPIDAPI_KEY
+#   wrangler secret put SCRAPE_DO_TOKEN       # optional — fallback scraper
+#   wrangler secret put CF_ACCOUNT_ID         # optional — CF Browser Rendering
+#   wrangler secret put CF_API_TOKEN          # optional — CF Browser Rendering
+#   wrangler secret put WORKER_AUTH           # optional — protect your endpoint
