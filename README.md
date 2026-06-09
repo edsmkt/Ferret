@@ -194,13 +194,13 @@ Ferret uses RapidAPI Google Search by default. Here are providers ranked by cost
 
 | Provider | Plan | 100K Cost | Per 1K | Speed | Notes |
 |----------|------|-----------|--------|-------|-------|
-| Scrappa.co (PAYG) | $25 Basic (86K credits) | $27 | **$0.29** | N/A | PAYG, credits valid 12 months. 80+ endpoints. $0.20/1K at $1,000 pack |
-| Scrapingdog Light | $90/mo Standard | $45 | **$0.45** | 1.25-1.83s | Basic organic only (position, title, URL, snippet) |
-| Scrapingdog Advanced | $90/mo Standard | $90 | **$0.90** | 1.25-1.83s | Full output: PAA, AI Overview, ads, local pack, related searches |
-| HasData Light | $99/mo Business | $50 | **$0.50** | 1.75-2.3s | Organic only. 200K searches at $0.50/1K |
-| HasData Full | $99/mo Business | $99 | **$0.99** | 1.75-2.3s | 15+ features: PAA, AI Overview, ads, local pack, knowledge graph |
-| SearchCans (PAYG) | $99 Starter | $75 | **$0.75** | 1-1.5s | PAYG, credits valid 6 months. Zero independent reviews |
-| Serper.dev (PAYG) | $50 | $100 | **$1.00** | 1.83-2.87s | PAYG, credits valid 6 months. Gets cheaper at 500K+ ($0.50/1K) |
+| [Scrappa.co](https://scrappa.co/pricing) (PAYG) | $25 Basic (86K credits) | $27 | **$0.29** | N/A | PAYG, credits valid 12 months. 80+ endpoints. $0.20/1K at $1,000 pack |
+| [Scrapingdog](https://www.scrapingdog.com/prices/) Light | $90/mo Standard | $45 | **$0.45** | 1.25-1.83s | Basic organic only (position, title, URL, snippet) |
+| [Scrapingdog](https://www.scrapingdog.com/prices/) Advanced | $90/mo Standard | $90 | **$0.90** | 1.25-1.83s | Full output: PAA, AI Overview, ads, local pack, related searches |
+| [HasData](https://hasdata.com/prices) Light | $99/mo Business | $50 | **$0.50** | 1.75-2.3s | Organic only. 200K searches at $0.50/1K |
+| [HasData](https://hasdata.com/prices) Full | $99/mo Business | $99 | **$0.99** | 1.75-2.3s | 15+ features: PAA, AI Overview, ads, local pack, knowledge graph |
+| [SearchCans](https://www.searchcans.com/pricing/) (PAYG) | $99 Starter | $75 | **$0.75** | 1-1.5s | PAYG, credits valid 6 months. Zero independent reviews |
+| [Serper.dev](https://serper.dev/pricing) (PAYG) | $50 | $100 | **$1.00** | 1.83-2.87s | PAYG, credits valid 6 months. Gets cheaper at 500K+ ($0.50/1K) |
 
 To swap providers, see [AGENT.md](AGENT.md) for instructions on replacing the search and scraping functions.
 
