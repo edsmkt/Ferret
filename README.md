@@ -320,3 +320,7 @@ Typical cost per research call: **$0.001 - $0.01** depending on how many searche
 ## License
 
 MIT
+
+---
+
+*Ferret is an open-source alternative to Claygent, Clay's AI web research agent. If you're looking for a self-hosted Claygent replacement that works with any LLM, any search API, and any scraper — this is it.*
