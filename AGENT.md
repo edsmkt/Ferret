@@ -170,10 +170,13 @@ async function scrapingBeeFetch(url, env, log) {
 
 ## How to Swap the LLM
 
+Ferret works with **any LLM that supports tool calling and JSON output** via an OpenAI-compatible API. This includes DeepSeek, OpenAI, Anthropic (via OpenRouter), Google Gemini, Groq, Together, Mistral, and local models served through Ollama or vLLM with an OpenAI-compatible wrapper.
+
 Replace `deepseek()` and update the payload format. The function must:
 1. Accept an OpenAI-compatible chat completion payload
 2. Return the response JSON with `choices[0].message`
-3. Support `tools` (function calling) and `response_format: { type: "json_object" }`
+3. Support `tools` (function calling) — so the agent can call `web_search` and `fetch_page`
+4. Support `response_format: { type: "json_object" }` — so the final answer is valid JSON
 
 ### To use OpenAI
 

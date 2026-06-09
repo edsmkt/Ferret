@@ -2,7 +2,7 @@
 
 Open-source Claygent alternative. Deploy a web research agent on Cloudflare Workers.
 
-Send a prompt + JSON Schema, get structured data back. Ferret searches Google, scrapes websites, and uses an LLM to return exactly the JSON you asked for.
+Send a prompt + JSON Schema, get structured data back. Ferret searches Google, scrapes websites, and uses any LLM with tool calling (DeepSeek, GPT-4o, Claude, Gemini, Llama — anything OpenAI-compatible) to return exactly the JSON you asked for.
 
 Works as a Clay HTTP Request column, n8n webhook target, or standalone API.
 
@@ -11,7 +11,7 @@ Works as a Clay HTTP Request column, n8n webhook target, or standalone API.
 Claygent charges 2 Clay credits per row. If you're running 10,000 rows, that's 20,000 credits gone on research alone.
 
 Ferret does the same thing on your own infrastructure:
-- **DeepSeek** instead of GPT-4 (fraction of the cost)
+- **Any LLM with tool calling + JSON mode** — DeepSeek, GPT-4o, Claude, Gemini, Llama, Mistral, or any OpenAI-compatible API
 - **Native Cloudflare fetch** for page scraping (free)
 - **Your own search API** (from $0.04/1K searches)
 - **Fully open** — swap any provider, model, or scraper
@@ -203,6 +203,20 @@ Ferret uses RapidAPI Google Search by default. Here are providers ranked by cost
 | [Serper.dev](https://serper.dev/pricing) (PAYG) | $50 | $100 | **$1.00** | 1.83-2.87s | PAYG, credits valid 6 months. Gets cheaper at 500K+ ($0.50/1K) |
 
 To swap providers, see [AGENT.md](AGENT.md) for instructions on replacing the search and scraping functions.
+
+### Scraping Providers (page fetching fallback)
+
+Ferret uses native Cloudflare fetch first (free). These are fallback options for when sites block direct requests:
+
+| Provider | Plan | Credits | Per 1K | Concurrency | Notes |
+|----------|------|---------|--------|-------------|-------|
+| [scrape.do](https://scrape.do/pricing/) Free | $0/mo | 1,000 | Free | 5 | Good for testing |
+| [scrape.do](https://scrape.do/pricing/) Hobby | $29/mo | 250K | **$0.11** | 10 | Personal/non-commercial |
+| [scrape.do](https://scrape.do/pricing/) Pro | $99/mo | 1.25M | **$0.08** | 50 | Teams and power users |
+| [scrape.do](https://scrape.do/pricing/) Business | $249/mo | 3.5M | **$0.07** | 100 | Dedicated account manager |
+| [scrape.do](https://scrape.do/pricing/) Advanced | $699/mo | 10M | **$0.06** | 200 | Custom WAF bypass, SLA |
+
+Note: JS rendering (`render=true`) costs 5 credits per call, super mode costs 25 credits. Most pages resolve via free native fetch — scrape.do is rarely needed.
 
 ## Cost Comparison
 
