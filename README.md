@@ -20,7 +20,7 @@ POST { prompt, schema }
         ▼
    ┌─────────┐
    │ DeepSeek │──── web_search (RapidAPI Google) ───► Google results
-   │  agent   │──── fetch_page ───► native fetch ───► CF Browser ───► scrape.do
+   │  agent   │──── fetch_page ───► native fetch ───► CF Browser ───► scraping API
    │  loop    │
    └────┬─────┘
         │
@@ -36,11 +36,9 @@ Page fetching cascades through 5 tiers to minimize cost:
 |------|--------|------|
 | 1 | Native `fetch()` from Cloudflare edge | Free |
 | 2 | Cloudflare Browser Rendering | Browser seconds (no external credits) |
-| 3 | scrape.do standard | 1 credit |
-| 4 | scrape.do render (JS) | 5 credits |
-| 5 | scrape.do super (headless) | 25 credits |
+| 3+ | Scraping API fallback (JS rendering, proxies) | Varies |
 
-Most pages resolve at tier 1. scrape.do is rarely needed.
+Most pages resolve at tier 1. Ships with scrape.do as the fallback scraper, but you can replace it with your preferred provider (Zenrows, ScrapingBee, Spider.cloud, etc.) — ideally one with JS rendering and proxies for hard-to-reach sites.
 
 ## Prerequisites
 
