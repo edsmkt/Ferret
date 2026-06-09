@@ -210,11 +210,11 @@ Ferret uses native Cloudflare fetch first (free). These are fallback options for
 
 | Provider | Plan | Credits | Per 1K | Concurrency | Notes |
 |----------|------|---------|--------|-------------|-------|
-| [scrape.do](https://scrape.do/pricing/) Free | $0/mo | 1,000 | Free | 5 | Good for testing |
-| [scrape.do](https://scrape.do/pricing/) Hobby | $29/mo | 250K | **$0.11** | 10 | Personal/non-commercial |
-| [scrape.do](https://scrape.do/pricing/) Pro | $99/mo | 1.25M | **$0.08** | 50 | Teams and power users |
-| [scrape.do](https://scrape.do/pricing/) Business | $249/mo | 3.5M | **$0.07** | 100 | Dedicated account manager |
-| [scrape.do](https://scrape.do/pricing/) Advanced | $699/mo | 10M | **$0.06** | 200 | Custom WAF bypass, SLA |
+| [scrape.do](https://scrape.do?fpr=w13vy2) Free | $0/mo | 1,000 | Free | 5 | Good for testing |
+| [scrape.do](https://scrape.do?fpr=w13vy2) Hobby | $29/mo | 250K | **$0.11** | 10 | Personal/non-commercial |
+| [scrape.do](https://scrape.do?fpr=w13vy2) Pro | $99/mo | 1.25M | **$0.08** | 50 | Teams and power users |
+| [scrape.do](https://scrape.do?fpr=w13vy2) Business | $249/mo | 3.5M | **$0.07** | 100 | Dedicated account manager |
+| [scrape.do](https://scrape.do?fpr=w13vy2) Advanced | $699/mo | 10M | **$0.06** | 200 | Custom WAF bypass, SLA |
 
 Note: JS rendering (`render=true`) costs 5 credits per call, super mode costs 25 credits. Most pages resolve via free native fetch — scrape.do is rarely needed.
 
