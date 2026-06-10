@@ -48,7 +48,33 @@ wrangler secret put SCRAPE_DO_TOKEN
 wrangler secret put WORKER_AUTH          # optional — protect the endpoint
 ```
 
-### 4. Deploy
+### 4. Tune MAX_FETCHES — ask the user
+
+`MAX_FETCHES` (default **10**) is the agent's tool-call budget per request: how many searches + page fetches it may spend before it must answer. It is the main depth-vs-cost dial, so **don't silently keep the default — ask the user about their workload** before deploying. Cached re-reads are free and don't count against it.
+
+Ask something like:
+
+> "Ferret caps how many searches and page fetches the agent can make per request (`MAX_FETCHES`, default 10). What will most of your requests look like?
+> - **Quick lookups** (find a pricing page, check one fact) → 5 is plenty, runs faster and cheaper
+> - **Standard research** (qualify a company, find pricing + case studies) → the default 10 fits
+> - **Deep research** (multi-criteria ICP scoring, tech stack audits) → 12–15, and raise `deadline_ms` to match
+>
+> Also: are you on the Workers free tier? It allows 50 subrequests per invocation, so use 5 there."
+
+Context for the recommendation you give:
+
+| Workload | MAX_FETCHES | Why |
+|----------|-------------|-----|
+| Quick lookups | 5 | Most answers land in 1–4 fetches; a lower cap stops a confused run sooner |
+| Standard GTM research | 10 (default) | Enough for search → navigate → verify on 2–3 pages, with room to recover from dead URLs |
+| Deep research | 12–15 | More criteria = more pages; pair with `deadline_ms` ≥ 90000 or the deadline cuts the run first |
+| Workers free tier | 5 | 50-subrequest limit per invocation — a worst-case cascade run can exceed it at 10 |
+
+Each fetch costs LLM input tokens (the page content enters the conversation) and possibly scraping credits, so a higher cap raises worst-case cost per row — that matters at 10K-row table scale. The deadline (default 120s) and MAX_FETCHES interact: whichever runs out first ends the research.
+
+Set it in `wrangler.toml` under `[vars]`, or leave the default.
+
+### 5. Deploy
 
 ```bash
 # Test locally first
@@ -346,7 +372,7 @@ async function zenrowsFetch(url, env, log) {
 | `CF_API_TOKEN` | `cfBrowserFetch()` | No (CF Browser Rendering) |
 | `WORKER_AUTH` | Entry point | No (endpoint protection) |
 | `MODEL` | `research()` | No (default: deepseek-chat) |
-| `MAX_FETCHES` | `research()` | No (default: 8) |
+| `MAX_FETCHES` | `research()` | No (default: 10 — see "Tune MAX_FETCHES" above) |
 | `MAX_TOKENS` | `research()` | No (default: 4000) |
 
 When you swap a provider, add its API key as a new env var and update the function to read from `env.YOUR_NEW_KEY`.

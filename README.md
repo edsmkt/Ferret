@@ -256,7 +256,7 @@ Even with auth, a leaked key or a runaway Clay table can hammer your worker. Add
 
 ### Subrequest limits (free tier)
 
-Free-tier Workers allow **50 subrequests per invocation**. A worst-case run (8 fetches × full 5-tier cascade + LLM retries) can approach that and fail mid-research. The paid plan ($5/mo) allows 1,000, which Ferret can't realistically hit. If you stay on free tier, consider `MAX_FETCHES=5`.
+Free-tier Workers allow **50 subrequests per invocation**. A worst-case run (10 fetches × full 5-tier cascade + LLM retries) can exceed that and fail mid-research. The paid plan ($5/mo) allows 1,000, which Ferret can't realistically hit. If you stay on free tier, set `MAX_FETCHES=5`.
 
 ## Configuration
 
@@ -276,7 +276,7 @@ Free-tier Workers allow **50 subrequests per invocation**. A worst-case run (8 f
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `MODEL` | `deepseek-chat` | LLM model to use |
-| `MAX_FETCHES` | `8` | Max tool calls per request |
+| `MAX_FETCHES` | `10` | Max tool calls per request — tune to your workload, see [AGENT.md](AGENT.md) |
 | `MAX_TOKENS` | `4000` | Max LLM output tokens |
 | `DEFAULT_DEADLINE_MS` | `120000` | Default soft time budget when the request doesn't pass `deadline_ms` |
 

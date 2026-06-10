@@ -472,7 +472,7 @@ function buildSystemPrompt(userPrompt, schema) {
 
 // --- Main research loop ---
 async function research(input, env) {
-  const MAX = +(env.MAX_FETCHES || 8);
+  const MAX = +(env.MAX_FETCHES || 10);
   const MODEL = env.MODEL || "deepseek-chat";
   const MT = +(env.MAX_TOKENS || 4000);
   const agentLog = [];
