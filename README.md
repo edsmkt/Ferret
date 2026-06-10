@@ -218,9 +218,15 @@ Optional fields:
 
 If the run fails mid-research (e.g. the LLM provider goes down), the response includes an `error` field **plus everything gathered up to that point** — the `agent_log` is never lost.
 
-### Using with Clay
+### Calling Ferret from your stack
 
-Add an **HTTP Request** column in Clay:
+Ferret is a plain HTTP endpoint — anything that can POST JSON can use it. The sweet spot is workflows **outside** spreadsheet-style tools: n8n/Make automations, scripts, batch jobs, and AI agents, where nothing times out and the agent can research as thoroughly as the task needs (`deadline_ms: 0`, `max_fetches` up to 20).
+
+**n8n / Make:** add an HTTP Request node — POST, JSON body with `prompt` + `schema`, header `x-worker-key`. n8n waits as long as needed, so thorough runs are fine. Map `result.*` fields from the response into the rest of your workflow.
+
+**Scripts / AI agents:** see the curl examples in [examples/](examples/) — each recipe is a complete request body. Coding agents can also use this repo's `ferret-prompt-test` skill to develop and validate prompts.
+
+**Clay** (works, with one caveat — Clay's HTTP column times out around 30-60s):
 
 - **Method:** POST
 - **URL:** `https://ferret.your-subdomain.workers.dev`

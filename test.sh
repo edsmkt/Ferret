@@ -56,6 +56,17 @@ run_test "GTM research with schema + deadline" \
 assert isinstance(d['result']['has_free_trial'], bool), 'has_free_trial not a boolean'
 assert len(d['sources']) > 0, 'no sources recorded'"
 
+# Un-coached recovery: dead URL, no fallback instruction in the prompt —
+# the agent must recover to the live page on its own and answer from a
+# primary source (regression for the dead-page recovery + system prompt)
+run_test "un-coached dead-URL recovery to primary source" \
+  '{"prompt":"Get the pricing from https://www.lemlist.com/old-pricing-page — report the cheapest monthly plan name and price in USD.","schema":{"type":"object","required":["cheapest_plan","price_monthly_usd","source_url"],"properties":{"cheapest_plan":{"type":"string"},"price_monthly_usd":{"type":"number"},"source_url":{"type":"string"}}},"deadline_ms":90000}' \
+  "assert 'lemlist' in d['result']['source_url'], 'did not recover to a primary source: ' + d['result']['source_url']
+assert isinstance(d['result']['price_monthly_usd'], (int, float)), 'price not a number'
+assert any('lemlist' in s for s in d['sources']), 'no lemlist page was actually fetched'
+dead = [e for e in d['agent_log'] if e.get('url','').endswith('old-pricing-page')]
+assert dead and all(e.get('cost', 0) == 0 for e in dead), 'paid credits burned on the dead URL'"
+
 echo
 echo "$pass passed, $fail failed"
 exit $fail
