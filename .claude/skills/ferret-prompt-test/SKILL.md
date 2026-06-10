@@ -38,13 +38,26 @@ If the user brings a prompt, start from it. If they bring a goal, draft prompt +
 
 Pick 3 real companies spanning the variance that breaks prompts: one well-known, one mid/obscure, one edge case (weird niche, non-US, tiny site). Run all three (sequential curl calls, save each response to `/tmp/`).
 
-### 3. Diagnose from the logs — not from vibes
+### 3. Manual check — establish ground truth yourself
 
-For each run, read in this order:
+For each input, independently research the load-bearing fields using YOUR OWN tools (web search, page fetch) — do not look at Ferret's answer first, and do not reuse Ferret's sources as your starting point. You are the control group; if you start from Ferret's output you'll anchor on it.
+
+Then grade Ferret's result field-by-field against your ground truth:
+
+| Grade | Meaning |
+|-------|---------|
+| match | Ferret's value agrees with what you found |
+| mismatch | Ferret is wrong — note what the correct value is and which source proves it |
+| unverifiable | You couldn't determine it either — don't count against Ferret, but flag if Ferret claimed it confidently |
+
+A run passes only if every load-bearing field is `match`. Plausible-but-wrong is the failure mode this step exists to catch — a result can look clean, validate against the schema, and still be stale or fabricated (we caught a $24.16 price for a plan that no longer existed exactly this way).
+
+### 4. Diagnose failures from the logs — not from vibes
+
+For each mismatch, read in this order:
 
 | Signal | Question it answers |
 |--------|--------------------|
-| `result` vs reality | Is the answer actually right? Spot-check one claim per run yourself |
 | `agent_log` queries + `purpose` fields | What did it look for, and why? Wasted searches (revenue hunting, repeated angles) = prompt sends it down holes |
 | `sources` | Did the answer come from primary pages or search snippets? |
 | `schema_issues` / `schema_retry` | Schema fighting the model (required + legitimately-empty, type mismatches) |
@@ -59,13 +72,13 @@ Common failure → fix patterns (all field-tested):
 - **Wandering on scoped tasks** → "Check ONLY …. Do not search." (absolute phrasing)
 - **Required fields forced into guesses** → make them nullable or use the enum instead of empty-string instructions
 
-### 4. Fix and re-run
+### 5. Fix and re-run
 
-Change the **prompt/schema only** — never tune Ferret's system prompt in `worker.js` for one use case. Re-run the same 3 inputs. Pass = all 3 give correct, verified, schema-clean results.
+Change the **prompt/schema only** — never tune Ferret's system prompt in `worker.js` for one use case. Re-run the same 3 inputs and repeat the manual check on fields that changed. Pass = all 3 runs have every load-bearing field graded `match`, verified, schema-clean.
 
-### 5. Deliver
+### 6. Deliver
 
-Hand back: final payload JSON (ready for n8n/script/HTTP), a one-line note on recommended `max_fetches`/`deadline_ms` for this task's weight, and what was changed between rounds and why (the log evidence).
+Hand back: final payload JSON (ready for n8n/script/HTTP), a one-line note on recommended `max_fetches`/`deadline_ms` for this task's weight, the final grade table (3 inputs × load-bearing fields), and what was changed between rounds and why (the log evidence).
 
 ## Rules
 
