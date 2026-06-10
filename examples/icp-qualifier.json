@@ -1,0 +1,24 @@
+{
+  "prompt": "Research lemlist.com and qualify them against this ICP: post-PMF B2B SaaS company, 50+ employees, sells to sales or marketing teams, has a self-serve pricing page. Verify each criterion with evidence from their website or search results — do not guess.",
+  "schema": {
+    "type": "object",
+    "required": ["qualified", "criteria", "summary"],
+    "properties": {
+      "qualified": { "type": "boolean" },
+      "criteria": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": ["criterion", "met", "evidence"],
+          "properties": {
+            "criterion": { "type": "string" },
+            "met": { "type": "boolean" },
+            "evidence": { "type": "string" }
+          }
+        }
+      },
+      "summary": { "type": "string", "description": "2-3 sentence qualification verdict" }
+    }
+  },
+  "deadline_ms": 60000
+}

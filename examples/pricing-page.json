@@ -1,0 +1,25 @@
+{
+  "prompt": "Research lemlist.com (the cold outreach tool). Find their pricing page. Report the URL, their plans with monthly prices in USD, and whether they offer a free trial.",
+  "schema": {
+    "type": "object",
+    "required": ["pricing_url", "has_free_trial", "plans"],
+    "properties": {
+      "pricing_url": { "type": "string" },
+      "has_free_trial": { "type": "boolean" },
+      "free_trial_days": { "type": "integer" },
+      "plans": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": ["name", "price_monthly_usd"],
+          "properties": {
+            "name": { "type": "string" },
+            "price_monthly_usd": { "type": ["number", "null"], "description": "null for custom/enterprise pricing" }
+          }
+        }
+      },
+      "notes": { "type": "string", "description": "billing caveats, annual discounts, per-seat vs flat" }
+    }
+  },
+  "deadline_ms": 45000
+}

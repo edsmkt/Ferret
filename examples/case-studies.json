@@ -1,0 +1,22 @@
+{
+  "prompt": "Research lemlist.com. Find their case studies / customer stories / success stories page. List up to 8 named customers featured there, and note any with quantified results (e.g. '3x reply rate').",
+  "schema": {
+    "type": "object",
+    "required": ["case_studies_url", "customers"],
+    "properties": {
+      "case_studies_url": { "type": "string" },
+      "customers": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": ["name"],
+          "properties": {
+            "name": { "type": "string" },
+            "result": { "type": "string", "description": "quantified outcome if stated, else empty" }
+          }
+        }
+      }
+    }
+  },
+  "deadline_ms": 45000
+}

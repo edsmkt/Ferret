@@ -45,8 +45,8 @@ Built-in cost and reliability controls:
 - **Dead-URL stop** — a 404/410/401 from the target stops the cascade immediately (escalating to paid tiers can't make a missing page appear)
 - **Per-request cache** — re-fetching a URL or repeating a search is free and doesn't count against the tool budget
 - **Context compaction** — older tool results are truncated so input tokens don't grow quadratically across rounds
-- **Schema validation** — if required fields are missing from the final JSON, the agent gets one cheap retry round to fill them
-- **Deadline support** — pass `deadline_ms` and the agent wraps up early instead of timing out your HTTP client
+- **Schema validation** — required fields, types, and enums are checked on the final JSON; the agent gets one cheap retry round to fix any problems (no more `"about 120"` in your number columns)
+- **Deadline support** — a 120s default time budget (override per request with `deadline_ms`) makes the agent wrap up early instead of timing out your HTTP client
 
 ## Prerequisites
 
@@ -167,13 +167,13 @@ Content-Type: application/json
 }
 ```
 
-The `schema` field accepts either a **JSON Schema** (with `type`, `properties`, `required`, `description`, `enum`) or a plain **example object** — Ferret handles both. With a JSON Schema, `required` fields are validated on the final output and the agent gets one retry round to fill anything missing.
+The `schema` field accepts either a **JSON Schema** (with `type`, `properties`, `required`, `description`, `enum`) or a plain **example object** — Ferret handles both. With a JSON Schema, the final output is validated — required fields present, values matching their declared types, enum values legal — and the agent gets one retry round to fix any problems.
 
 Optional fields:
 
 | Field | Description |
 |-------|-------------|
-| `deadline_ms` | Soft time budget in milliseconds. The agent stops researching and returns its best answer before the deadline — set this when calling from tools with HTTP timeouts (Clay, n8n, Make). Example: `45000`. |
+| `deadline_ms` | Soft time budget in milliseconds. The agent stops researching and returns its best answer before the deadline. **Defaults to 120000 (2 min)** — set it lower when calling from tools with HTTP timeouts (Clay ~45000), or pass `0` to disable the deadline entirely. The default is configurable via the `DEFAULT_DEADLINE_MS` var in `wrangler.toml`. |
 
 ### Response
 
@@ -186,6 +186,7 @@ Optional fields:
     "ceo": "Hans Mueller",
     "employee_count": 120
   },
+  "sources": ["https://acme.de", "https://acme.de/about"],
   "agent_log": [
     { "step": "web_search", "query": "Acme GmbH", "via": "rapidapi", "status": 200, "cost": 0 },
     { "step": "fetch_page", "url": "https://acme.de", "via": "native", "status": 200, "cost": 0, "chars": 8000 },
@@ -193,11 +194,23 @@ Optional fields:
     { "step": "done", "rounds_total": 3, "fetches_used": 4 }
   ],
   "scrape_credits_total": 0,
+  "tokens_in": 14250,
+  "tokens_out": 820,
+  "duration_ms": 21400,
   "model": "deepseek-chat"
 }
 ```
 
-The `agent_log` shows every step the agent took — every search, every page fetch, which tier handled it, and the cost.
+| Field | Description |
+|-------|-------------|
+| `result` | The structured JSON matching your schema |
+| `sources` | The pages the agent actually read — audit where answers came from |
+| `agent_log` | Every step taken: every search, every fetch, which tier handled it, the cost |
+| `scrape_credits_total` | Paid scraping credits spent on this request |
+| `tokens_in` / `tokens_out` | Total LLM tokens — multiply by your provider's rates for exact per-row cost |
+| `duration_ms` | Wall-clock time for the whole research run |
+
+If the run fails mid-research (e.g. the LLM provider goes down), the response includes an `error` field **plus everything gathered up to that point** — the `agent_log` is never lost.
 
 ### Using with Clay
 
@@ -264,6 +277,7 @@ Free-tier Workers allow **50 subrequests per invocation**. A worst-case run (8 f
 | `MODEL` | `deepseek-chat` | LLM model to use |
 | `MAX_FETCHES` | `8` | Max tool calls per request |
 | `MAX_TOKENS` | `4000` | Max LLM output tokens |
+| `DEFAULT_DEADLINE_MS` | `120000` | Default soft time budget when the request doesn't pass `deadline_ms` |
 
 ## Search API Providers
 

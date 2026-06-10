@@ -382,29 +382,54 @@ function allowsNull(def) {
   return Array.isArray(t) ? t.includes("null") : t === "null";
 }
 
-// Walks required fields (including nested objects and arrays of objects)
-// and returns dotted paths of anything missing, null, or empty-string.
-function findMissingFields(schema, obj, path = "") {
-  const missing = [];
-  if (!schema || typeof obj !== "object" || obj === null || Array.isArray(obj)) return missing;
+function typeOk(def, v) {
+  if (!def || !def.type) return true;
+  const types = Array.isArray(def.type) ? def.type : [def.type];
+  return types.some(t => {
+    if (t === "null") return v === null;
+    if (t === "string") return typeof v === "string";
+    if (t === "number") return typeof v === "number" && Number.isFinite(v);
+    if (t === "integer") return Number.isInteger(v);
+    if (t === "boolean") return typeof v === "boolean";
+    if (t === "array") return Array.isArray(v);
+    if (t === "object") return v !== null && typeof v === "object" && !Array.isArray(v);
+    return true;
+  });
+}
+
+// Walks the schema (including nested objects and arrays of objects) and
+// returns human-readable problems: missing required fields, wrong types,
+// enum violations. Wrong types matter downstream — a Clay number column
+// chokes on "about 120" where 120 was expected.
+function findSchemaIssues(schema, obj, path = "") {
+  const issues = [];
+  if (!schema || typeof obj !== "object" || obj === null || Array.isArray(obj)) return issues;
   const props = schema.properties || {};
   const req = new Set(schema.required || []);
 
   for (const k of req) {
     const v = obj[k];
     if (v === undefined || ((v === null || v === "") && !allowsNull(props[k]))) {
-      missing.push(path + k);
+      issues.push(`${path}${k}: missing required field`);
     }
   }
   for (const [k, def] of Object.entries(props)) {
     const v = obj[k];
+    if (v === undefined || (v === null && allowsNull(def))) continue;
+    if (!typeOk(def, v)) {
+      issues.push(`${path}${k}: expected ${Array.isArray(def.type) ? def.type.join("|") : def.type}, got ${Array.isArray(v) ? "array" : typeof v} (${JSON.stringify(v).slice(0, 60)})`);
+      continue;
+    }
+    if (def.enum && !def.enum.includes(v)) {
+      issues.push(`${path}${k}: value ${JSON.stringify(v).slice(0, 60)} is not one of [${def.enum.join(", ")}]`);
+    }
     if (def.type === "object" && def.properties && v && typeof v === "object" && !Array.isArray(v)) {
-      missing.push(...findMissingFields(def, v, path + k + "."));
+      issues.push(...findSchemaIssues(def, v, path + k + "."));
     } else if (def.type === "array" && def.items?.type === "object" && def.items.properties && Array.isArray(v)) {
-      v.forEach((item, i) => missing.push(...findMissingFields(def.items, item, `${path}${k}[${i}].`)));
+      v.forEach((item, i) => issues.push(...findSchemaIssues(def.items, item, `${path}${k}[${i}].`)));
     }
   }
-  return missing;
+  return issues;
 }
 
 // --- Build the system prompt ---
@@ -426,10 +451,14 @@ async function research(input, env) {
   const agentLog = [];
   const caches = { pages: new Map(), searches: new Map() };
 
-  // Optional deadline: wrap up early so callers with HTTP timeouts (Clay ~30-60s)
+  // Deadline: wrap up early so callers with HTTP timeouts (Clay ~30-60s)
   // get a result instead of a timeout. Reserve time for the final LLM call.
+  // Defaults to DEFAULT_DEADLINE_MS (120s) so a stuck run can't burn tokens
+  // for minutes — pass deadline_ms: 0 to disable, or any value to override.
   const started = Date.now();
-  const deadline = Math.max(0, +input.deadline_ms || 0);
+  const deadline = input.deadline_ms !== undefined
+    ? Math.max(0, +input.deadline_ms || 0)
+    : +(env.DEFAULT_DEADLINE_MS || 120000);
   const reserve = deadline ? Math.min(12000, Math.floor(deadline * 0.4)) : 0;
   const timeUp = () => deadline > 0 && Date.now() - started > deadline - reserve;
 
@@ -440,12 +469,36 @@ async function research(input, env) {
     { role: "user", content: "Begin your research and return the JSON result." },
   ];
 
-  agentLog.push({ step: "llm_call", round: 1, note: "initial" });
-  let d = await deepseek({ model: MODEL, max_tokens: MT, messages: msgs, tools: TOOLS }, env);
   let fetches = 0;
   let schemaRetried = false;
+  const usage = { in: 0, out: 0 };
+  const addUsage = (d) => {
+    usage.in += d?.usage?.prompt_tokens || 0;
+    usage.out += d?.usage?.completion_tokens || 0;
+  };
 
   const creditsTotal = () => agentLog.filter(e => e.cost).reduce((t, e) => t + e.cost, 0);
+  // Pages the agent actually read (first fetch only — cache hits are repeats)
+  const sources = () => [...new Set(agentLog.filter(e => e.step === "fetch_page" && e.chars > 0 && e.via !== "cache").map(e => e.url))];
+  const finish = (result, extra = {}) => ({
+    result,
+    sources: sources(),
+    agent_log: agentLog,
+    scrape_credits_total: creditsTotal(),
+    tokens_in: usage.in,
+    tokens_out: usage.out,
+    duration_ms: Date.now() - started,
+    model: MODEL,
+    ...extra,
+  });
+
+  // Everything below returns via finish() — including on error, so the
+  // agent_log survives for debugging instead of being lost to the caller's catch.
+  try {
+
+  agentLog.push({ step: "llm_call", round: 1, note: "initial" });
+  let d = await deepseek({ model: MODEL, max_tokens: MT, messages: msgs, tools: TOOLS }, env);
+  addUsage(d);
 
   for (let round = 0; round < MAX + 2; round++) {
     const m = d.choices[0].message;
@@ -484,6 +537,7 @@ async function research(input, env) {
       }
       agentLog.push({ step: "llm_call", round: round + 2, note: wrapUp ? (timeUp() ? "final (deadline)" : "final (tool budget spent)") : "continuing" });
       d = await deepseek(p, env);
+      addUsage(d);
       continue;
     }
 
@@ -491,44 +545,41 @@ async function research(input, env) {
     const result = parseJson(raw);
     const isEmpty = Object.keys(result).length === 0;
 
-    // One cheap retry if required fields are missing — the difference between
+    // One cheap retry if the result has schema problems (missing required
+    // fields, wrong types, enum violations) — the difference between
     // "usually works" and dependable on a 10K-row table.
     if (isJsonSchema(input.schema) && !schemaRetried) {
-      const missing = findMissingFields(input.schema, result);
-      if (missing.length && !isEmpty) {
+      const issues = findSchemaIssues(input.schema, result);
+      if (issues.length && !isEmpty) {
         schemaRetried = true;
-        agentLog.push({ step: "schema_retry", missing_fields: missing.slice(0, 20) });
+        agentLog.push({ step: "schema_retry", issues: issues.slice(0, 20) });
         msgs.push(m);
-        msgs.push({ role: "user", content: `Your JSON is missing or has empty required fields: ${missing.join(", ")}. Return the COMPLETE corrected JSON object with every required field filled in. If data for a field is truly unavailable, use your best inference or state "not found" — but the field must be present. Output ONLY the JSON object.` });
+        msgs.push({ role: "user", content: `Your JSON has these problems:\n${issues.map(i => "- " + i).join("\n")}\n\nReturn the COMPLETE corrected JSON object with every required field present and every value matching its declared type (numbers as numbers, not strings). If data for a field is truly unavailable, use your best inference or "not found" — but the field must be present and correctly typed. Output ONLY the JSON object.` });
         d = await deepseek({ model: MODEL, max_tokens: MT, messages: msgs, response_format: { type: "json_object" } }, env);
+        addUsage(d);
         continue;
       }
     }
 
-    const missingFinal = isJsonSchema(input.schema) ? findMissingFields(input.schema, result) : [];
+    const issuesFinal = isJsonSchema(input.schema) ? findSchemaIssues(input.schema, result) : [];
     agentLog.push({
       step: "done", rounds_total: round + 1, fetches_used: fetches,
       ...(isEmpty && { raw_content: raw.slice(0, 500) }),
-      ...(missingFinal.length && { missing_fields: missingFinal.slice(0, 20) }),
+      ...(issuesFinal.length && { schema_issues: issuesFinal.slice(0, 20) }),
     });
-    return {
-      result,
-      agent_log: agentLog,
-      scrape_credits_total: creditsTotal(),
-      model: MODEL,
-    };
+    return finish(result);
   }
 
   const finalRaw = d.choices?.[0]?.message?.content || "";
   const finalResult = parseJson(finalRaw);
   const isEmpty = Object.keys(finalResult).length === 0;
   agentLog.push({ step: "max_rounds_hit", fetches_used: fetches, ...(isEmpty && { raw_content: finalRaw.slice(0, 500) }) });
-  return {
-    result: finalResult,
-    agent_log: agentLog,
-    scrape_credits_total: creditsTotal(),
-    model: MODEL,
-  };
+  return finish(finalResult);
+
+  } catch (e) {
+    agentLog.push({ step: "error", error: String(e).slice(0, 200) });
+    return finish({}, { error: String(e).slice(0, 500) });
+  }
 }
 
 // --- Worker entry point ---

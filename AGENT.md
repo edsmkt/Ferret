@@ -81,9 +81,10 @@ worker.js (single file, ~350 lines)
 │   ├── Calls LLM with tools: [fetch_page, web_search]
 │   ├── Loops: if LLM calls a tool → execute it → feed result back → call LLM again
 │   ├── Stops when: LLM returns JSON (no tool calls), MAX_FETCHES hit, or deadline_ms near
-│   ├── Validates result against schema required fields → one retry round if missing
+│   ├── Validates result against schema (required fields, types, enums) → one retry round
 │   ├── Compacts old tool results (>4 rounds back truncated to 2K chars) to cap input tokens
-│   └── Returns { result, agent_log, scrape_credits_total, model }
+│   ├── On error: returns partial agent_log + error field instead of throwing
+│   └── Returns { result, sources, agent_log, scrape_credits_total, tokens_in, tokens_out, duration_ms, model }
 │
 ├── execTool() — Tool dispatcher + per-request cache
 │   ├── "web_search" → webSearch() — exact-match query cache

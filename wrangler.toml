@@ -6,6 +6,7 @@ compatibility_date = "2024-11-01"
 MODEL = "deepseek-chat"
 MAX_FETCHES = "8"
 MAX_TOKENS = "4000"
+DEFAULT_DEADLINE_MS = "120000"   # agent wraps up by this unless the request overrides deadline_ms
 
 # Secrets (set via wrangler secret put):
 #   wrangler secret put DEEPSEEK_API_KEY

@@ -1,0 +1,22 @@
+{
+  "prompt": "Research lemlist.com's website. Identify tools and platforms they visibly use or integrate with: CRM, marketing automation, analytics, chat widgets, payment providers. Check their homepage, integrations page, and careers page for tech mentions. Only report tools with concrete evidence — name the page where you saw each one.",
+  "schema": {
+    "type": "object",
+    "required": ["tools"],
+    "properties": {
+      "tools": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": ["name", "category", "evidence_url"],
+          "properties": {
+            "name": { "type": "string" },
+            "category": { "type": "string", "enum": ["crm", "marketing", "analytics", "chat", "payments", "infrastructure", "other"] },
+            "evidence_url": { "type": "string" }
+          }
+        }
+      }
+    }
+  },
+  "deadline_ms": 60000
+}

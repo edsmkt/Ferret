@@ -1,0 +1,12 @@
+{
+  "prompt": "Check ONLY the page https://www.lemlist.com/pricing. Do not search the web. Do not fetch any other page. Report whether they advertise a free trial on that page.",
+  "schema": {
+    "type": "object",
+    "required": ["has_free_trial"],
+    "properties": {
+      "has_free_trial": { "type": "boolean" },
+      "evidence": { "type": "string" }
+    }
+  },
+  "deadline_ms": 30000
+}
