@@ -114,7 +114,7 @@ worker.js (single file, ~350 lines)
 │
 ├── execTool() — Tool dispatcher + per-request cache
 │   ├── "web_search" → webSearch() — exact-match query cache
-│   ├── "fetch_page" → fetchPage() — URL cache, 8K-char windows via offset param
+│   ├── "fetch_page" → fetchPage() — URL cache, 16K-char windows via offset param
 │   └── Returns { content, cached } — cached calls don't count against MAX_FETCHES
 │
 ├── webSearch() — Google search (currently RapidAPI, swappable)
@@ -299,7 +299,7 @@ async function fetchPage(url, env, log) {
 }
 ```
 
-Note: `fetchPage()` returns up to 40K chars; `execTool()` caches the full text per-request and serves it to the LLM in 8K-char windows (the `offset` tool parameter). Failure strings are cached too, so the agent can't re-burn the cascade on a dead URL.
+Note: `fetchPage()` returns up to 100K chars; `execTool()` caches the full text per-request and serves it to the LLM in 16K-char windows (the `offset` tool parameter). Failure strings are cached too, so the agent can't re-burn the cascade on a dead URL. If you swap to an LLM with a small context window, shrink `PAGE_WINDOW` and the `htmlToText`/`stripMd` caps accordingly.
 
 Each scraper function must:
 1. Accept `(url, env, log)`

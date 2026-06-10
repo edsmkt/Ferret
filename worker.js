@@ -37,12 +37,15 @@ function unesc(s) {
   return s
     .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'").replace(/&nbsp;/g, " ")
-    .replace(/&#(\d+);/g, (_, d) => String.fromCharCode(+d));
+    .replace(/&#(\d+);/g, (_, d) => String.fromCharCode(+d))
+    .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCharCode(parseInt(h, 16)));
 }
 
-// Cap is generous (40K) because pages are cached per-request and the model
-// reads them in 8K windows via the fetch_page offset parameter.
-function htmlToText(html, cap = 40000) {
+// Cap is generous (100K chars ≈ 25K tokens) because pages are cached
+// per-request and the model reads them in PAGE_WINDOW slices via the
+// fetch_page offset parameter. DeepSeek's 128K context and cheap input
+// pricing make big windows affordable; compaction keeps old reads small.
+function htmlToText(html, cap = 100000) {
   return unesc(
     html
       .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, " ")
@@ -53,7 +56,7 @@ function htmlToText(html, cap = 40000) {
   ).replace(/\s+/g, " ").trim().slice(0, cap);
 }
 
-function stripMd(md, cap = 40000) {
+function stripMd(md, cap = 100000) {
   return unesc(md).replace(/\s+/g, " ").trim().slice(0, cap);
 }
 
@@ -240,7 +243,7 @@ async function webSearch(q, env, n = 6, log = null) {
 }
 
 // --- Tool definitions given to the LLM ---
-const PAGE_WINDOW = 8000;
+const PAGE_WINDOW = 16000;
 
 const TOOLS = [
   {
@@ -252,7 +255,7 @@ const TOOLS = [
         type: "object",
         properties: {
           url: { type: "string", description: "Full URL to fetch" },
-          offset: { type: "integer", description: "Character offset to continue reading a long page. The first call returns chars 0-8000; if the result says the page continues, call again with the suggested offset." },
+          offset: { type: "integer", description: "Character offset to continue reading a long page. The first call returns chars 0-16000; if the result says the page continues, call again with the suggested offset." },
         },
         required: ["url"],
       },
