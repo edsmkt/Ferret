@@ -12,6 +12,8 @@ A simple, open-source web research agent. Send a prompt + JSON Schema, get struc
 
 Point your coding agent (Claude Code, Codex, Cursor) to [AGENT.md](AGENT.md) and tell it to fit Ferret to your stack.
 
+Writing prompts and schemas that hold up at 10K-row scale: see [PROMPTING.md](PROMPTING.md) — scope control, verification patterns, schema design rules, all tested. Ready-made recipes in [examples/](examples/).
+
 ## How It Works
 
 ```

@@ -21,6 +21,8 @@ curl -X POST https://ferret.<your-subdomain>.workers.dev \
   -d @examples/pricing-page.json
 ```
 
+For the full guide — scope control, verification enums, schema design rules, budget interplay — see [PROMPTING.md](../PROMPTING.md).
+
 ## Tips
 
 - **Always set `deadline_ms`** when calling from Clay (~45000) or n8n — the agent wraps up before your HTTP timeout instead of erroring.
