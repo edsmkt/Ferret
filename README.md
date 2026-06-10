@@ -14,6 +14,8 @@ Point your coding agent (Claude Code, Codex, Cursor) to [AGENT.md](AGENT.md) and
 
 Writing prompts and schemas that hold up at 10K-row scale: see [PROMPTING.md](PROMPTING.md) — scope control, verification patterns, schema design rules, all tested. Ready-made recipes in [examples/](examples/).
 
+Claude Code users: the repo ships a [`ferret-prompt-test`](.claude/skills/ferret-prompt-test/SKILL.md) skill — open this repo in Claude Code and ask it to test your prompt; it runs your prompt against diverse real inputs, diagnoses failures from the agent_log, and iterates until results are reliable.
+
 ## How It Works
 
 ```
