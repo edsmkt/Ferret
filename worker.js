@@ -482,13 +482,15 @@ function buildSystemPrompt(userPrompt, schema) {
   if (schema) {
     sys += `\n\n${renderSchema(schema)}`;
   }
-  sys += `\n\nYou have two tools available:\n- fetch_page: fetch any URL and get its text content (handles proxying and JS rendering automatically; long pages can be paged through with the offset parameter — cached re-reads are free)\n- web_search: Google search\n\nUse them as needed to gather the information required. Don't repeat a search you already ran. Fetched pages end with a list of same-site links — use those to navigate to the page you need instead of guessing URLs. Be a problem solver: if a URL is dead, behind a login, or blocked, your goal is still the INFORMATION. Recover in this order: first find the live page on the SAME site (search "site:domain.com <topic>" or fetch the homepage and follow its links); only if the site itself doesn't have it, use another reliable source. Third-party sites (aggregators, review sites) are often OUTDATED for facts that change — pricing, plans, headcount — so verify on the company's own pages whenever reachable. A trustworthy secondary source beats giving up, but never beats the primary source. If the task restricts scope (e.g. "check only this page", "do not search", "only do X"), follow that restriction EXACTLY — do not take extra steps beyond what was asked. When you have enough, return your final JSON response.`;
+  sys += `\n\nYou have two tools available:\n- fetch_page: fetch any URL and get its text content (handles proxying and JS rendering automatically; long pages can be paged through with the offset parameter — cached re-reads are free)\n- web_search: Google search\n\nUse them as needed to gather the information required. Don't repeat a search you already ran. Fetched pages end with a list of same-site links — use those to navigate to the page you need instead of guessing URLs. Be a problem solver: if a URL is dead, behind a login, or blocked, your goal is still the INFORMATION. Recover in this order: first find the live page on the SAME site (search "site:domain.com <topic>" or fetch the homepage and follow its links); only if the site itself doesn't have it, use another reliable source. Third-party sites (aggregators, review sites) are often OUTDATED for facts that change — pricing, plans, headcount — so verify on the company's own pages whenever reachable. A trustworthy secondary source beats giving up, but never beats the primary source. If your final answer includes URLs as data (a pricing page, a competitor's website), verify them when budget allows: fetch the page to confirm it is live and is what you claim — never output a guessed URL. If the task restricts scope (e.g. "check only this page", "do not search", "only do X"), follow that restriction EXACTLY — do not take extra steps beyond what was asked. When you have enough, return your final JSON response.`;
   return sys;
 }
 
 // --- Main research loop ---
 async function research(input, env) {
-  const MAX = +(env.MAX_FETCHES || 10);
+  // Per-request override (clamped) — one deployed worker can serve both
+  // light lookups and deep-research columns.
+  const MAX = Math.min(20, Math.max(1, +input.max_fetches || +(env.MAX_FETCHES || 10)));
   const MODEL = env.MODEL || "deepseek-v4-flash";
   const MT = +(env.MAX_TOKENS || 8000);
   const agentLog = [];
@@ -514,6 +516,7 @@ async function research(input, env) {
 
   let fetches = 0;
   let schemaRetried = false;
+  let emptyRetried = false;
   const usage = { in: 0, out: 0 };
   const addUsage = (d) => {
     usage.in += d?.usage?.prompt_tokens || 0;
@@ -587,6 +590,18 @@ async function research(input, env) {
     const raw = m.content || "";
     const result = parseJson(raw);
     const isEmpty = Object.keys(result).length === 0;
+
+    // Empty/garbled final answer (observed: whitespace-only output after a
+    // budget-forced wrap-up) — one retry demanding the JSON.
+    if (isEmpty && !emptyRetried) {
+      emptyRetried = true;
+      agentLog.push({ step: "empty_retry", raw_content: raw.slice(0, 200) });
+      msgs.push(m);
+      msgs.push({ role: "user", content: "Your last message was empty or not valid JSON. Output the complete JSON object now, using the information you have already gathered. Output ONLY the JSON object." });
+      d = await deepseek({ model: MODEL, max_tokens: MT, messages: msgs, response_format: { type: "json_object" } }, env);
+      addUsage(d);
+      continue;
+    }
 
     // One cheap retry if the result has schema problems (missing required
     // fields, wrong types, enum violations) — the difference between

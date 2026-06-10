@@ -177,6 +177,7 @@ Optional fields:
 | Field | Description |
 |-------|-------------|
 | `deadline_ms` | Soft time budget in milliseconds. The agent stops researching and returns its best answer before the deadline. **Defaults to 120000 (2 min)** — set it lower when calling from tools with HTTP timeouts (Clay ~45000), or pass `0` to disable the deadline entirely. The default is configurable via the `DEFAULT_DEADLINE_MS` var in `wrangler.toml`. |
+| `max_fetches` | Per-request tool-call budget override (clamped to 1–20). Lets one deployed worker serve both light lookup columns (`5`) and deep research columns (`15`) without separate deploys. Defaults to the `MAX_FETCHES` var (10). |
 
 ### Response
 
