@@ -1,6 +1,6 @@
 # PROMPTING.md — Getting Reliable Results Out of Ferret
 
-How you phrase the prompt and design the schema changes what comes back. Everything below was observed in real test runs against the default model (`deepseek-chat`); other models will differ in degree, not direction.
+How you phrase the prompt and design the schema changes what comes back. Everything below was observed in real test runs against the default model (`deepseek-v4-flash`); other models will differ in degree, not direction.
 
 ## The basics
 

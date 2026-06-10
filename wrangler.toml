@@ -3,9 +3,9 @@ main = "worker.js"
 compatibility_date = "2024-11-01"
 
 [vars]
-MODEL = "deepseek-chat"
+MODEL = "deepseek-v4-flash"
 MAX_FETCHES = "10"   # tool-call budget per request — see AGENT.md "Tuning MAX_FETCHES" before changing
-MAX_TOKENS = "4000"
+MAX_TOKENS = "8000"   # LLM output cap — large schemas (arrays of objects) need headroom or the JSON truncates
 DEFAULT_DEADLINE_MS = "120000"   # agent wraps up by this unless the request overrides deadline_ms
 
 # Secrets (set via wrangler secret put):

@@ -178,7 +178,7 @@ async function llmCall(payload, env) {
 
 | Provider | URL | API Key Env Var | Recommended Model |
 |----------|-----|-----------------|-------------------|
-| DeepSeek (default) | `https://api.deepseek.com/chat/completions` | `DEEPSEEK_API_KEY` | `deepseek-chat` |
+| DeepSeek (default) | `https://api.deepseek.com/chat/completions` | `DEEPSEEK_API_KEY` | `deepseek-v4-flash` |
 | OpenAI | `https://api.openai.com/v1/chat/completions` | `OPENAI_API_KEY` | `gpt-4o-mini` |
 | Groq | `https://api.groq.com/openai/v1/chat/completions` | `GROQ_API_KEY` | `llama-3.3-70b-versatile` |
 | Together | `https://api.together.xyz/v1/chat/completions` | `TOGETHER_API_KEY` | `meta-llama/Llama-3.3-70B-Instruct-Turbo` |
@@ -371,8 +371,8 @@ async function zenrowsFetch(url, env, log) {
 | `CF_ACCOUNT_ID` | `cfBrowserFetch()` | No (CF Browser Rendering) |
 | `CF_API_TOKEN` | `cfBrowserFetch()` | No (CF Browser Rendering) |
 | `WORKER_AUTH` | Entry point | No (endpoint protection) |
-| `MODEL` | `research()` | No (default: deepseek-chat) |
+| `MODEL` | `research()` | No (default: deepseek-v4-flash) |
 | `MAX_FETCHES` | `research()` | No (default: 10 — see "Tune MAX_FETCHES" above) |
-| `MAX_TOKENS` | `research()` | No (default: 4000) |
+| `MAX_TOKENS` | `research()` | No (default: 8000) |
 
 When you swap a provider, add its API key as a new env var and update the function to read from `env.YOUR_NEW_KEY`.

@@ -200,7 +200,7 @@ Optional fields:
   "tokens_in": 14250,
   "tokens_out": 820,
   "duration_ms": 21400,
-  "model": "deepseek-chat"
+  "model": "deepseek-v4-flash"
 }
 ```
 
@@ -277,9 +277,9 @@ Free-tier Workers allow **50 subrequests per invocation**. A worst-case run (10 
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `MODEL` | `deepseek-chat` | LLM model to use |
+| `MODEL` | `deepseek-v4-flash` | LLM model to use |
 | `MAX_FETCHES` | `10` | Max tool calls per request — tune to your workload, see [AGENT.md](AGENT.md) |
-| `MAX_TOKENS` | `4000` | Max LLM output tokens |
+| `MAX_TOKENS` | `8000` | Max LLM output tokens — large schemas need headroom or the JSON truncates |
 | `DEFAULT_DEADLINE_MS` | `120000` | Default soft time budget when the request doesn't pass `deadline_ms` |
 
 ## Search API Providers

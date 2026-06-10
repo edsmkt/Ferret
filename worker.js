@@ -41,11 +41,14 @@ function unesc(s) {
     .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCharCode(parseInt(h, 16)));
 }
 
-// Cap is generous (100K chars ≈ 25K tokens) because pages are cached
-// per-request and the model reads them in PAGE_WINDOW slices via the
-// fetch_page offset parameter. DeepSeek's 128K context and cheap input
+// Cap is generous (300K chars ≈ 75K tokens — bigger than almost any real
+// page's visible text) because pages are cached per-request and the model
+// reads them in PAGE_WINDOW slices via the
+// fetch_page offset parameter. DeepSeek's 1M-token context and cheap input
 // pricing make big windows affordable; compaction keeps old reads small.
-function htmlToText(html, cap = 100000) {
+// If you swap to a smaller-context LLM (most are 128K-210K), shrink
+// PAGE_WINDOW and these caps to match.
+function htmlToText(html, cap = 300000) {
   return unesc(
     html
       .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, " ")
@@ -56,7 +59,7 @@ function htmlToText(html, cap = 100000) {
   ).replace(/\s+/g, " ").trim().slice(0, cap);
 }
 
-function stripMd(md, cap = 100000) {
+function stripMd(md, cap = 300000) {
   return unesc(md).replace(/\s+/g, " ").trim().slice(0, cap);
 }
 
@@ -285,7 +288,7 @@ async function execTool(name, args, env, log, caches) {
       if (log) log.push({ step: "web_search", query: q.slice(0, 120), via: "cache", status: 200, cost: 0 });
       return { content: "(note: you already ran this exact search — same results below, try a DIFFERENT query if these weren't enough)\n" + caches.searches.get(key), cached: true };
     }
-    const res = (await webSearch(q, env, 6, log)).slice(0, 6000);
+    const res = (await webSearch(q, env, 6, log)).slice(0, 10000);
     caches.searches.set(key, res);
     return { content: res, cached: false };
   }
@@ -476,8 +479,8 @@ function buildSystemPrompt(userPrompt, schema) {
 // --- Main research loop ---
 async function research(input, env) {
   const MAX = +(env.MAX_FETCHES || 10);
-  const MODEL = env.MODEL || "deepseek-chat";
-  const MT = +(env.MAX_TOKENS || 4000);
+  const MODEL = env.MODEL || "deepseek-v4-flash";
+  const MT = +(env.MAX_TOKENS || 8000);
   const agentLog = [];
   const caches = { pages: new Map(), searches: new Map() };
 
