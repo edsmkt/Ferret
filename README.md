@@ -354,7 +354,7 @@ Note: JS rendering (`render=true`) costs 5 credits per call, super mode costs 25
 
 ### Claygent
 - Locked to Clay — can only use inside Clay tables
-- No control over which LLM, search API, or scraper it uses
+- Limited models to choose from, no control over the search API or scraper it uses
 
 ### Ferret (self-hosted)
 - **Search:** $0.04-$1.00 per 1K searches depending on provider
