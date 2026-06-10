@@ -38,19 +38,24 @@ If the user brings a prompt, start from it. If they bring a goal, draft prompt +
 
 Pick 3 real companies spanning the variance that breaks prompts: one well-known, one mid/obscure, one edge case (weird niche, non-US, tiny site). Run all three (sequential curl calls, save each response to `/tmp/`).
 
-### 3. Manual check — establish ground truth yourself
+### 3. Manual check — grade against your own research
 
-For each input, independently research the load-bearing fields using YOUR OWN tools (web search, page fetch) — do not look at Ferret's answer first, and do not reuse Ferret's sources as your starting point. You are the control group; if you start from Ferret's output you'll anchor on it.
+First classify each load-bearing field:
 
-Then grade Ferret's result field-by-field against your ground truth:
+- **Fact field** — one right answer exists: website, pricing, funding, founding year, CEO, HQ, plan names. Ferret's value must MATCH your independently-found ground truth.
+- **Judgment field** — many valid answers exist: competitors, similar companies, case-study picks, classifications with fuzzy boundaries. Ferret's answer does NOT have to equal yours — grade it against the prompt's own criteria instead: is the pick real, live, and does it satisfy every rule the prompt sets (niche, business model, geography, size)?
 
-| Grade | Meaning |
-|-------|---------|
-| match | Ferret's value agrees with what you found |
-| mismatch | Ferret is wrong — note what the correct value is and which source proves it |
-| unverifiable | You couldn't determine it either — don't count against Ferret, but flag if Ferret claimed it confidently |
+Then research each input independently using YOUR OWN tools (web search, page fetch) — for fact fields, find the value before looking at Ferret's answer so you don't anchor on it; for judgment fields, verify Ferret's specific picks against the criteria (this part is inherently after seeing the output, that's fine).
 
-A run passes only if every load-bearing field is `match`. Plausible-but-wrong is the failure mode this step exists to catch — a result can look clean, validate against the schema, and still be stale or fabricated (we caught a $24.16 price for a plan that no longer existed exactly this way).
+Grades:
+
+| Grade | Fact field | Judgment field |
+|-------|-----------|----------------|
+| pass | Matches your ground truth | Pick is real, live, and satisfies all the prompt's rules — even if you'd have picked differently |
+| fail | Differs from ground truth — note the correct value and the proving source | Pick violates a rule (wrong niche, dead brand, wrong model/geo/size) or doesn't exist |
+| unverifiable | You couldn't determine it either — don't count against Ferret, but flag if Ferret claimed it confidently | Criterion can't be checked (e.g. revenue of a tiny private brand) — note which |
+
+A run passes only if every load-bearing field grades `pass`. Plausible-but-wrong is the failure mode this step exists to catch — a result can look clean, validate against the schema, and still be stale or fabricated (we caught a $24.16 price for a plan that no longer existed exactly this way; we also saw a niche-violating competitor that read fine until checked against the rules).
 
 ### 4. Diagnose failures from the logs — not from vibes
 
@@ -74,7 +79,7 @@ Common failure → fix patterns (all field-tested):
 
 ### 5. Fix and re-run
 
-Change the **prompt/schema only** — never tune Ferret's system prompt in `worker.js` for one use case. Re-run the same 3 inputs and repeat the manual check on fields that changed. Pass = all 3 runs have every load-bearing field graded `match`, verified, schema-clean.
+Change the **prompt/schema only** — never tune Ferret's system prompt in `worker.js` for one use case. Re-run the same 3 inputs and repeat the manual check on fields that changed. Pass = all 3 runs have every load-bearing field graded `pass`, verified, schema-clean.
 
 ### 6. Deliver
 
