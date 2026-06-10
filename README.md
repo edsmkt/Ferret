@@ -42,7 +42,8 @@ Most pages resolve at tier 1. Ships with scrape.do as the fallback scraper, but 
 
 Built-in cost and reliability controls:
 
-- **Dead-URL stop** — a 404/410/401 from the target stops the cascade immediately (escalating to paid tiers can't make a missing page appear)
+- **Dead-URL stop + recovery** — a 404/410/401 from the target stops the cascade immediately (escalating to paid tiers can't make a missing page appear), then the agent recovers: it searches for the live page, navigates from the homepage, or falls back to another reliable source — primary sources first, since third-party data goes stale
+- **Site navigation** — every fetched page ends with a list of same-site links, so the agent follows real URLs instead of guessing paths
 - **Per-request cache** — re-fetching a URL or repeating a search is free and doesn't count against the tool budget
 - **Context compaction** — older tool results are truncated so input tokens don't grow quadratically across rounds
 - **Schema validation** — required fields, types, and enums are checked on the final JSON; the agent gets one cheap retry round to fix any problems (no more `"about 120"` in your number columns)

@@ -57,6 +57,31 @@ function stripMd(md, cap = 40000) {
   return unesc(md).replace(/\s+/g, " ").trim().slice(0, cap);
 }
 
+// Same-domain links from raw HTML, so the agent can navigate a site instead
+// of guessing paths (htmlToText strips hrefs entirely).
+function extractLinks(html, baseUrl, max = 25) {
+  const out = new Set();
+  let base;
+  try { base = new URL(baseUrl); } catch { return []; }
+  const re = /<a[^>]+href=["']([^"']+)["']/gi;
+  let m;
+  while ((m = re.exec(html)) && out.size < max) {
+    try {
+      const u = new URL(unesc(m[1]), base);
+      if (u.host === base.host && /^https?:$/.test(u.protocol)) {
+        u.hash = "";
+        if (u.href !== base.href) out.add(u.href);
+      }
+    } catch {}
+  }
+  return [...out];
+}
+
+function withLinks(text, html, url) {
+  const links = extractLinks(html, url);
+  return links.length ? `${text}\n\nLINKS ON THIS PAGE (same site):\n${links.join("\n")}` : text;
+}
+
 // --- Tier 1: Native fetch from Cloudflare edge (free) ---
 // Returns { text, status } — the status lets the cascade stop on hard 404/410
 // instead of burning paid tiers on a page that doesn't exist.
@@ -79,7 +104,7 @@ async function nativeFetch(url, log) {
     const text = htmlToText(html);
     if (text.length > 100) {
       if (log) log.push({ step: "fetch_page", url, via: "native", status: r.status, cost: 0, chars: text.length });
-      return { text, status: r.status };
+      return { text: withLinks(text, html, url), status: r.status };
     }
     if (log) log.push({ step: "fetch_page", url, via: "native", status: r.status, cost: 0, note: `thin (${text.length} chars)` });
     return { text: "", status: r.status };
@@ -118,7 +143,7 @@ async function cfBrowserFetch(url, env, log) {
     const text = htmlToText(html);
     if (text.length > 100) {
       if (log) log.push({ step: "fetch_page", url, via: "cf-browser", status: r.status, cost: 0, chars: text.length });
-      return text;
+      return withLinks(text, html, url);
     }
     if (log) log.push({ step: "fetch_page", url, via: "cf-browser", status: r.status, cost: 0, note: `thin (${text.length} chars)` });
     return "";
@@ -157,7 +182,9 @@ async function fetchPage(url, env, log) {
   // 401 for nonexistent pages). Blocked (403/429) and thin pages still
   // escalate below, since proxies and rendering do fix those.
   if (status === 404 || status === 410 || status === 401) {
-    return `(page unavailable: ${url} returned HTTP ${status} — it does not exist or requires login. Do NOT retry this URL, try a different one)`;
+    let host = "", origin = "";
+    try { const u = new URL(url); host = u.host; origin = u.origin; } catch {}
+    return `(page unavailable: ${url} returned HTTP ${status} — it does not exist or requires login. Do NOT retry this exact URL. Your goal is the INFORMATION, not this page. Recover in this order: 1) find the live page on the same site — web_search "site:${host} <what you're looking for>" or fetch ${origin} and follow the links listed at the end of its content; 2) only if the site itself doesn't have it, use another reliable source — but third-party data is often OUTDATED (pricing and plans change), so prefer the company's own pages.)`;
   }
 
   // 2. Cloudflare Browser Rendering (browser seconds, handles JS)
@@ -439,7 +466,7 @@ function buildSystemPrompt(userPrompt, schema) {
   if (schema) {
     sys += `\n\n${renderSchema(schema)}`;
   }
-  sys += `\n\nYou have two tools available:\n- fetch_page: fetch any URL and get its text content (handles proxying and JS rendering automatically; long pages can be paged through with the offset parameter — cached re-reads are free)\n- web_search: Google search\n\nUse them as needed to gather the information required. Don't repeat a search you already ran. If the task restricts scope (e.g. "check only this page", "do not search", "only do X"), follow that restriction EXACTLY — do not take extra steps beyond what was asked. When you have enough, return your final JSON response.`;
+  sys += `\n\nYou have two tools available:\n- fetch_page: fetch any URL and get its text content (handles proxying and JS rendering automatically; long pages can be paged through with the offset parameter — cached re-reads are free)\n- web_search: Google search\n\nUse them as needed to gather the information required. Don't repeat a search you already ran. Fetched pages end with a list of same-site links — use those to navigate to the page you need instead of guessing URLs. Be a problem solver: if a URL is dead, behind a login, or blocked, your goal is still the INFORMATION. Recover in this order: first find the live page on the SAME site (search "site:domain.com <topic>" or fetch the homepage and follow its links); only if the site itself doesn't have it, use another reliable source. Third-party sites (aggregators, review sites) are often OUTDATED for facts that change — pricing, plans, headcount — so verify on the company's own pages whenever reachable. A trustworthy secondary source beats giving up, but never beats the primary source. If the task restricts scope (e.g. "check only this page", "do not search", "only do X"), follow that restriction EXACTLY — do not take extra steps beyond what was asked. When you have enough, return your final JSON response.`;
   return sys;
 }
 
