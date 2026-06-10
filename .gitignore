@@ -2,3 +2,4 @@
 .wrangler/
 node_modules/
 test-results.json
+.mcp.json
