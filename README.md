@@ -192,8 +192,8 @@ Optional fields:
   "sources": ["https://acme.de", "https://acme.de/about"],
   "agent_log": [
     { "step": "web_search", "query": "Acme GmbH", "via": "rapidapi", "status": 200, "cost": 0 },
-    { "step": "fetch_page", "url": "https://acme.de", "via": "native", "status": 200, "cost": 0, "chars": 8000 },
-    { "step": "fetch_page", "url": "https://acme.de/about", "via": "native", "status": 200, "cost": 0, "chars": 5200 },
+    { "step": "fetch_page", "url": "https://acme.de", "via": "native", "status": 200, "cost": 0, "chars": 8000, "purpose": "Find what the company does and locate pricing/about links" },
+    { "step": "fetch_page", "url": "https://acme.de/about", "via": "native", "status": 200, "cost": 0, "chars": 5200, "purpose": "Find the CEO name and company size" },
     { "step": "done", "rounds_total": 3, "fetches_used": 4 }
   ],
   "scrape_credits_total": 0,
@@ -208,7 +208,7 @@ Optional fields:
 |-------|-------------|
 | `result` | The structured JSON matching your schema |
 | `sources` | The pages the agent actually read — audit where answers came from |
-| `agent_log` | Every step taken: every search, every fetch, which tier handled it, the cost |
+| `agent_log` | Every step taken: every search query, every fetch with the agent's stated `purpose`, which tier handled it, the cost |
 | `scrape_credits_total` | Paid scraping credits spent on this request |
 | `tokens_in` / `tokens_out` | Total LLM tokens — multiply by your provider's rates for exact per-row cost |
 | `duration_ms` | Wall-clock time for the whole research run |

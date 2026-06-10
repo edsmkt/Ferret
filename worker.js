@@ -258,6 +258,7 @@ const TOOLS = [
         type: "object",
         properties: {
           url: { type: "string", description: "Full URL to fetch" },
+          purpose: { type: "string", description: "One short sentence: what you are looking for on this page. Always provide it — it is recorded in the run log for auditing." },
           offset: { type: "integer", description: "Character offset to continue reading a long page. The first call returns chars 0-16000; if the result says the page continues, call again with the suggested offset." },
         },
         required: ["url"],
@@ -296,14 +297,23 @@ async function execTool(name, args, env, log, caches) {
   const url = (args.url || "").trim();
   const key = url.replace(/[?#]+$/, "").replace(/\/+$/, "");
   const offset = Math.max(0, Math.floor(+args.offset || 0));
+  const purpose = (args.purpose || "").slice(0, 200) || undefined;
   let full;
   const cached = caches.pages.has(key);
   if (cached) {
     full = caches.pages.get(key);
-    if (log) log.push({ step: "fetch_page", url, via: "cache", status: 200, cost: 0, ...(offset && { offset }) });
+    if (log) log.push({ step: "fetch_page", url, via: "cache", status: 200, cost: 0, ...(purpose && { purpose }), ...(offset && { offset }) });
   } else {
+    // Attach the model's stated intent to the first log entry this fetch
+    // produces (the cascade pushes its own per-tier entries).
+    const before = log ? log.length : 0;
     full = await fetchPage(url, env, log);
     caches.pages.set(key, full);
+    if (log && purpose) {
+      for (let i = before; i < log.length; i++) {
+        if (log[i].step === "fetch_page") { log[i].purpose = purpose; break; }
+      }
+    }
   }
 
   if (offset >= full.length && offset > 0) {

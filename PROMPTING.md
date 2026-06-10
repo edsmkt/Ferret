@@ -77,7 +77,8 @@ Enums are schema-validated (illegal values trigger the retry round), the model f
 Every response includes:
 
 - `sources` — pages the agent actually read. An answer with one source was less cross-checked than one with three.
-- `agent_log` — every search and fetch, in order, with status and cost. `schema_retry` entries mean the first answer had problems; `schema_issues` on the `done` entry means some survived.
+- `agent_log` — every search and fetch, in order, with status and cost. Each `fetch_page` entry carries a `purpose` field — the agent's stated reason for visiting that page — so you can see not just *what* it did but *why*. `schema_retry` entries mean the first answer had problems; `schema_issues` on the `done` entry means some survived.
+- When a run goes wrong, paste its `agent_log` into your coding agent (Claude Code, Cursor) and ask why — the queries and purposes usually point straight at the prompt fix.
 - `tokens_in` / `tokens_out` — multiply by your provider's rates for per-row cost.
 
 For bulk runs (Clay tables), keep `sources` and `schema_issues` as columns. Filtering "rows where evidence came from one source and schema_issues is non-empty" is your QA queue.
