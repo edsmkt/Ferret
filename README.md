@@ -40,6 +40,14 @@ Page fetching cascades through 5 tiers to minimize cost:
 
 Most pages resolve at tier 1. Ships with scrape.do as the fallback scraper, but you can replace it with your preferred provider (Zenrows, ScrapingBee, Spider.cloud, etc.) — ideally one with JS rendering and proxies for hard-to-reach sites.
 
+Built-in cost and reliability controls:
+
+- **Dead-URL stop** — a 404/410/401 from the target stops the cascade immediately (escalating to paid tiers can't make a missing page appear)
+- **Per-request cache** — re-fetching a URL or repeating a search is free and doesn't count against the tool budget
+- **Context compaction** — older tool results are truncated so input tokens don't grow quadratically across rounds
+- **Schema validation** — if required fields are missing from the final JSON, the agent gets one cheap retry round to fill them
+- **Deadline support** — pass `deadline_ms` and the agent wraps up early instead of timing out your HTTP client
+
 ## Prerequisites
 
 You need three things:
@@ -111,7 +119,7 @@ Local development reads from `.dev.vars`. For production, set secrets via Wrangl
 wrangler secret put DEEPSEEK_API_KEY
 wrangler secret put RAPIDAPI_KEY
 wrangler secret put SCRAPE_DO_TOKEN        # optional
-wrangler secret put WORKER_AUTH            # optional — protect your endpoint
+wrangler secret put WORKER_AUTH            # strongly recommended — see Production Hardening
 ```
 
 ### Optional: Cloudflare Browser Rendering
@@ -159,7 +167,13 @@ Content-Type: application/json
 }
 ```
 
-The `schema` field accepts either a **JSON Schema** (with `type`, `properties`, `required`, `description`, `enum`) or a plain **example object** — Ferret handles both.
+The `schema` field accepts either a **JSON Schema** (with `type`, `properties`, `required`, `description`, `enum`) or a plain **example object** — Ferret handles both. With a JSON Schema, `required` fields are validated on the final output and the agent gets one retry round to fill anything missing.
+
+Optional fields:
+
+| Field | Description |
+|-------|-------------|
+| `deadline_ms` | Soft time budget in milliseconds. The agent stops researching and returns its best answer before the deadline — set this when calling from tools with HTTP timeouts (Clay, n8n, Make). Example: `45000`. |
 
 ### Response
 
@@ -200,24 +214,35 @@ Add an **HTTP Request** column in Clay:
     "industry": "string",
     "ceo_name": "string",
     "employee_count": "number"
-  }
+  },
+  "deadline_ms": 45000
 }
 ```
 
-Clay resolves `{{placeholders}}` before sending — Ferret receives the full prompt with real values.
+Clay resolves `{{placeholders}}` before sending — Ferret receives the full prompt with real values. Set `deadline_ms` to ~45000 so the agent answers before Clay's HTTP timeout instead of returning an error on slow research runs.
 
-### Authentication
+## Production Hardening
 
-Set the `WORKER_AUTH` secret to protect your endpoint:
+### Set WORKER_AUTH — an open endpoint is an open wallet
+
+Without it, **anyone who finds your worker URL can burn your LLM and scraping credits**. Treat this as required for any deployed instance:
 
 ```bash
 wrangler secret put WORKER_AUTH
 ```
 
-Then include in requests:
+Then include in every request:
 ```
 x-worker-key: your-secret-key
 ```
+
+### Rate limiting
+
+Even with auth, a leaked key or a runaway Clay table can hammer your worker. Add a [Cloudflare rate limiting rule](https://developers.cloudflare.com/waf/rate-limiting-rules/) on your worker's route (e.g. 60 requests/minute per IP) — no code changes needed.
+
+### Subrequest limits (free tier)
+
+Free-tier Workers allow **50 subrequests per invocation**. A worst-case run (8 fetches × full 5-tier cascade + LLM retries) can approach that and fail mid-research. The paid plan ($5/mo) allows 1,000, which Ferret can't realistically hit. If you stay on free tier, consider `MAX_FETCHES=5`.
 
 ## Configuration
 
@@ -230,7 +255,7 @@ x-worker-key: your-secret-key
 | `SCRAPE_DO_TOKEN` | No | scrape.do token (fallback scraping) |
 | `CF_ACCOUNT_ID` | No | Cloudflare account ID (Browser Rendering) |
 | `CF_API_TOKEN` | No | Cloudflare API token with Browser Rendering permission |
-| `WORKER_AUTH` | No | Secret key to protect your endpoint |
+| `WORKER_AUTH` | Strongly recommended | Secret key to protect your endpoint — without it anyone with the URL can spend your credits |
 
 ### Wrangler Vars
 

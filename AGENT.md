@@ -80,12 +80,15 @@ worker.js (single file, ~350 lines)
 │   ├── Builds system prompt from user's prompt + schema
 │   ├── Calls LLM with tools: [fetch_page, web_search]
 │   ├── Loops: if LLM calls a tool → execute it → feed result back → call LLM again
-│   ├── Stops when: LLM returns JSON (no tool calls) or MAX_FETCHES hit
+│   ├── Stops when: LLM returns JSON (no tool calls), MAX_FETCHES hit, or deadline_ms near
+│   ├── Validates result against schema required fields → one retry round if missing
+│   ├── Compacts old tool results (>4 rounds back truncated to 2K chars) to cap input tokens
 │   └── Returns { result, agent_log, scrape_credits_total, model }
 │
-├── execTool() — Tool dispatcher
-│   ├── "web_search" → webSearch()
-│   └── "fetch_page" → fetchPage()
+├── execTool() — Tool dispatcher + per-request cache
+│   ├── "web_search" → webSearch() — exact-match query cache
+│   ├── "fetch_page" → fetchPage() — URL cache, 8K-char windows via offset param
+│   └── Returns { content, cached } — cached calls don't count against MAX_FETCHES
 │
 ├── webSearch() — Google search (currently RapidAPI, swappable)
 │
@@ -249,17 +252,27 @@ The `fetchPage()` function is a cascade. To add or replace a tier, edit `fetchPa
 ```js
 async function fetchPage(url, env, log) {
   // Tier 1: Native fetch (free, always available)
-  let text = await nativeFetch(url, log);
-  if (text) return text;
+  // Returns { text, status } — the status drives the hard-stop below
+  const { text: nativeText, status } = await nativeFetch(url, log);
+  if (nativeText) return nativeText;
+
+  // Hard stop on 404/410/401 — the page doesn't exist or needs login;
+  // escalating to paid tiers can't fix that. KEEP THIS when editing the
+  // cascade, it's the main credit-leak guard.
+  if (status === 404 || status === 410 || status === 401) {
+    return `(page unavailable: ${url} returned HTTP ${status} — do NOT retry this URL)`;
+  }
 
   // Tier 2: Your custom scraper here
-  text = await yourScraper(url, env, log);
+  let text = await yourScraper(url, env, log);
   if (text) return text;
 
   // Tier 3+: Fallbacks...
   return `(could not fetch ${url})`;
 }
 ```
+
+Note: `fetchPage()` returns up to 40K chars; `execTool()` caches the full text per-request and serves it to the LLM in 8K-char windows (the `offset` tool parameter). Failure strings are cached too, so the agent can't re-burn the cascade on a dead URL.
 
 Each scraper function must:
 1. Accept `(url, env, log)`

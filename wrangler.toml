@@ -13,4 +13,4 @@ MAX_TOKENS = "4000"
 #   wrangler secret put SCRAPE_DO_TOKEN       # optional — fallback scraper
 #   wrangler secret put CF_ACCOUNT_ID         # optional — CF Browser Rendering
 #   wrangler secret put CF_API_TOKEN          # optional — CF Browser Rendering
-#   wrangler secret put WORKER_AUTH           # optional — protect your endpoint
+#   wrangler secret put WORKER_AUTH           # strongly recommended — an open endpoint is an open wallet
