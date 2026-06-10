@@ -176,17 +176,33 @@ async function llmCall(payload, env) {
 }
 ```
 
-| Provider | URL | API Key Env Var | Recommended Model |
-|----------|-----|-----------------|-------------------|
-| DeepSeek (default) | `https://api.deepseek.com/chat/completions` | `DEEPSEEK_API_KEY` | `deepseek-v4-flash` |
-| OpenAI | `https://api.openai.com/v1/chat/completions` | `OPENAI_API_KEY` | `gpt-4o-mini` |
-| Groq | `https://api.groq.com/openai/v1/chat/completions` | `GROQ_API_KEY` | `llama-3.3-70b-versatile` |
-| Together | `https://api.together.xyz/v1/chat/completions` | `TOGETHER_API_KEY` | `meta-llama/Llama-3.3-70B-Instruct-Turbo` |
-| OpenRouter | `https://openrouter.ai/api/v1/chat/completions` | `OPENROUTER_API_KEY` | `anthropic/claude-sonnet-4` |
-| Mistral | `https://api.mistral.ai/v1/chat/completions` | `MISTRAL_API_KEY` | `mistral-large-latest` |
-| Google Gemini | `https://generativelanguage.googleapis.com/v1beta/openai/chat/completions` | `GEMINI_API_KEY` | `gemini-2.5-flash` |
+| Provider | URL | API Key Env Var | Recommended Model | Context |
+|----------|-----|-----------------|-------------------|---------|
+| DeepSeek (default) | `https://api.deepseek.com/chat/completions` | `DEEPSEEK_API_KEY` | `deepseek-v4-flash` | 1M |
+| OpenAI | `https://api.openai.com/v1/chat/completions` | `OPENAI_API_KEY` | `gpt-4o-mini` | 128K |
+| Groq | `https://api.groq.com/openai/v1/chat/completions` | `GROQ_API_KEY` | `llama-3.3-70b-versatile` | 128K |
+| Together | `https://api.together.xyz/v1/chat/completions` | `TOGETHER_API_KEY` | `meta-llama/Llama-3.3-70B-Instruct-Turbo` | 128K |
+| OpenRouter | `https://openrouter.ai/api/v1/chat/completions` | `OPENROUTER_API_KEY` | `anthropic/claude-sonnet-4` | 200K |
+| Mistral | `https://api.mistral.ai/v1/chat/completions` | `MISTRAL_API_KEY` | `mistral-large-latest` | 128K |
+| Google Gemini | `https://generativelanguage.googleapis.com/v1beta/openai/chat/completions` | `GEMINI_API_KEY` | `gemini-2.5-flash` | 1M |
+
+Context sizes change as providers ship new models — verify the current number for the user's chosen model rather than trusting this table blindly.
 
 After swapping, update `MODEL` in `wrangler.toml` and rename `deepseek()` calls to `llmCall()` in `research()`.
+
+### REQUIRED when swapping: retune the context-sized constants
+
+The defaults are tuned for DeepSeek's 1M-token context. Three constants in `worker.js` control how much page text enters the LLM's conversation, and **they must shrink for smaller-context models** or long research runs will blow the context window mid-run:
+
+| Constant | Default (1M context) | 128K-200K context | What it does |
+|----------|---------------------|-------------------|--------------|
+| `PAGE_WINDOW` | `16000` | `8000` | Chars of page text per fetch_page read (the model pages through the rest via `offset`) |
+| `htmlToText` / `stripMd` cap | `300000` | `100000` | Max chars of stripped text cached per page |
+| `MAX_TOKENS` (wrangler.toml) | `8000` | `4000` | LLM output cap — check the model's max output tokens |
+
+Rough math for sizing `PAGE_WINDOW` yourself: worst case ≈ `4 × PAGE_WINDOW + (MAX_FETCHES − 4) × 2000` chars of tool results in context (compaction truncates reads older than the last 4 to 2K chars), ÷4 for tokens, plus prompt and search results. At 128K context, `PAGE_WINDOW = 8000` with `MAX_FETCHES = 10` peaks around ~15K tokens of tool results — comfortable. The caps only *defer* content, never lose it: the model is told when a page continues and cached re-reads are free, so smaller windows cost extra rounds, not data.
+
+When you swap the LLM for a user, do this retuning unprompted and tell them what you set — don't leave the 1M-context defaults on a 128K model.
 
 ---
 
