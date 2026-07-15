@@ -216,8 +216,34 @@ async function fetchPage(url, env, log) {
   return `(could not fetch ${url} — all methods failed)`;
 }
 
+// --- Web search: Tavily ---
+async function tavilySearch(q, env, n = 6, log = null) {
+  try {
+    const r = await fetch("https://api.tavily.com/search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        api_key: env.TAVILY_API_KEY,
+        query: q,
+        max_results: n,
+        search_depth: "basic",
+      }),
+    });
+    if (log) log.push({ step: "web_search", query: (q || "").slice(0, 120), via: "tavily", status: r.status, cost: 0 });
+    if (!r.ok) return "(search failed: " + r.status + ")";
+    const d = await r.json();
+    const res = (d.results || []).slice(0, n);
+    return res.length
+      ? res.map((x, i) => `${i + 1}. ${x.title || ""} - ${x.url || ""}\n   ${x.content || ""}`).join("\n")
+      : "(no results)";
+  } catch (e) {
+    if (log) log.push({ step: "web_search", query: (q || "").slice(0, 120), via: "tavily", status: 0, cost: 0, error: String(e).slice(0, 80) });
+    return `(search failed: ${e})`;
+  }
+}
+
 // --- Web search (RapidAPI Google Search) ---
-async function webSearch(q, env, n = 6, log = null) {
+async function rapidapiSearch(q, env, n = 6, log = null) {
   try {
     const r = await fetch("https://google-search122.p.rapidapi.com/", {
       method: "POST",
@@ -243,6 +269,12 @@ async function webSearch(q, env, n = 6, log = null) {
     if (log) log.push({ step: "web_search", query: (q || "").slice(0, 120), via: "rapidapi", status: 0, cost: 0, error: String(e).slice(0, 80) });
     return `(search failed: ${e})`;
   }
+}
+
+// --- Web search dispatcher ---
+async function webSearch(q, env, n = 6, log = null) {
+  if (env.SEARCH_PROVIDER === "tavily") return tavilySearch(q, env, n, log);
+  return rapidapiSearch(q, env, n, log);
 }
 
 // --- Tool definitions given to the LLM ---

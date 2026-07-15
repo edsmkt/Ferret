@@ -233,6 +233,16 @@ async function webSearch(q, env, n = 6, log = null) {
 }
 ```
 
+### Drop-in: Tavily
+
+Set `SEARCH_PROVIDER = "tavily"` in `wrangler.toml` `[vars]` and add your API key:
+
+```bash
+wrangler secret put TAVILY_API_KEY
+```
+
+Already implemented in `worker.js` as `tavilySearch()` — the `webSearch()` dispatcher routes to it when `env.SEARCH_PROVIDER === "tavily"`. Tavily returns results under the `results` key with `title`, `url`, and `content` fields.
+
 ### Drop-in: Serper.dev
 
 ```js
@@ -386,6 +396,8 @@ async function zenrowsFetch(url, env, log) {
 | `SCRAPE_DO_TOKEN` | `scrapeDo()` | No (fallback scraper) |
 | `CF_ACCOUNT_ID` | `cfBrowserFetch()` | No (CF Browser Rendering) |
 | `CF_API_TOKEN` | `cfBrowserFetch()` | No (CF Browser Rendering) |
+| `TAVILY_API_KEY` | `tavilySearch()` | No (required when SEARCH_PROVIDER=tavily) |
+| `SEARCH_PROVIDER` | `webSearch()` | No (default: rapidapi — set to "tavily" to use Tavily) |
 | `WORKER_AUTH` | Entry point | No (endpoint protection) |
 | `MODEL` | `research()` | No (default: deepseek-v4-flash) |
 | `MAX_FETCHES` | `research()` | No (default: 10 — see "Tune MAX_FETCHES" above) |
