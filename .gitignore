@@ -1,5 +1,23 @@
+# Secrets & local env
 .dev.vars
-.wrangler/
-node_modules/
-test-results.json
 .mcp.json
+
+# Cloudflare / Wrangler
+.wrangler/
+
+# Dependencies
+node_modules/
+
+# Local marketing site (not part of the open-source agent)
+site/
+
+# Local test output
+test-results.json
+
+# OS / editor noise
+.DS_Store
+**/.DS_Store
+*.swp
+*.swo
+.idea/
+.vscode/
