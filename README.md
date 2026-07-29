@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="assets/logo.jpg" width="120" height="120" alt="Ferret" />
+  <img src="assets/logo.png" width="120" height="120" alt="Ferret" />
 
   <h1>Ferret</h1>
 
@@ -8,19 +8,7 @@
   <p>Get the Claygent experience with your existing stack, outside of Clay.</p>
 
   <p>
-    <a href="https://ferret-researcher.pages.dev"><img src="https://img.shields.io/badge/Website-ferret--researcher.pages.dev-c2410c?style=for-the-badge" alt="Website" /></a>
-    <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="MIT License" /></a>
-  </p>
-
-  <p>
-    <img src="https://img.shields.io/badge/Cloudflare-Workers-F38020?style=flat-square&logo=cloudflare&logoColor=white" alt="Cloudflare Workers" />
-    <img src="https://img.shields.io/badge/LLM-any_OpenAI--compatible-5eead4?style=flat-square&logo=openai&logoColor=white" alt="Any LLM" />
-    <img src="https://img.shields.io/badge/SERP-RapidAPI_·_swappable-2563eb?style=flat-square" alt="SERP" />
-    <img src="https://img.shields.io/badge/Scraping-native_·_Browser_·_scrape.do-7c3aed?style=flat-square" alt="Scraping" />
-    <img src="https://img.shields.io/badge/Clay-HTTP_column-000000?style=flat-square" alt="Clay" />
-    <img src="https://img.shields.io/badge/n8n-ready-EA4B71?style=flat-square&logo=n8n&logoColor=white" alt="n8n" />
-    <img src="https://img.shields.io/badge/Make-ready-6D00CC?style=flat-square" alt="Make" />
-    <img src="https://img.shields.io/badge/curl-POST_JSON-4B5563?style=flat-square" alt="curl" />
+    <img src="https://img.shields.io/static/v1?label=&message=Cloudflare&color=F38020&style=flat-square&logo=cloudflare&logoColor=white" alt="Cloudflare" /><img src="https://img.shields.io/static/v1?label=&message=LLM&color=5eead4&style=flat-square" alt="LLM" /><img src="https://img.shields.io/static/v1?label=&message=SERP&color=2563eb&style=flat-square" alt="SERP" /><img src="https://img.shields.io/static/v1?label=&message=Scraping&color=7c3aed&style=flat-square" alt="Scraping" />
   </p>
 </div>
 
