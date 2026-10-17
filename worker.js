@@ -216,8 +216,126 @@ async function fetchPage(url, env, log) {
   return `(could not fetch ${url} — all methods failed)`;
 }
 
-// --- Web search (RapidAPI Google Search) ---
-async function webSearch(q, env, n = 6, log = null) {
+// --- Web search ---
+function searchProvider(env) {
+  return (env.SEARCH_PROVIDER || (env.RAPIDAPI_KEY ? "rapidapi" : "parallel")).trim().toLowerCase();
+}
+
+// Streamable HTTP can return JSON or SSE. Stop after our response, even when
+// the server keeps its SSE connection open for later notifications.
+async function mcpResponse(response, id) {
+  if (!response.headers.get("content-type")?.includes("text/event-stream")) return response.json();
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      buffer += decoder.decode(value, { stream: !done });
+      let match;
+      while ((match = /\r?\n\r?\n/.exec(buffer))) {
+        const event = buffer.slice(0, match.index);
+        buffer = buffer.slice(match.index + match[0].length);
+        const data = event.split(/\r?\n/).filter(line => line.startsWith("data:"))
+          .map(line => line.slice(5).replace(/^ /, "")).join("\n");
+        if (!data) continue;
+        const message = JSON.parse(data);
+        if (message.id === id) return message;
+      }
+      if (done) throw new Error("MCP stream ended without a response");
+    }
+  } finally {
+    await reader.cancel().catch(() => {});
+    reader.releaseLock();
+  }
+}
+
+async function parallelSearch(q, env, n, log, state, signal) {
+  const controller = new AbortController();
+  const abort = () => controller.abort(signal.reason);
+  if (signal?.aborted) abort();
+  else signal?.addEventListener("abort", abort, { once: true });
+  const timeout = Math.min(60000, Math.max(1, +env.SEARCH_TIMEOUT_MS || 15000));
+  const timer = setTimeout(() => controller.abort(new Error("search timeout")), timeout);
+  let status = 0;
+  const rpc = async (method, params, notification = false) => {
+    controller.signal.throwIfAborted();
+    const id = ++state.id;
+    const response = await fetch("https://search.parallel.ai/mcp", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json, text/event-stream",
+        "User-Agent": "Ferret/1.0 (+https://github.com/edsmkt/Ferret)",
+        ...(state.protocol && { "MCP-Protocol-Version": state.protocol }),
+        ...(state.session && { "Mcp-Session-Id": state.session }),
+      },
+      body: JSON.stringify({ jsonrpc: "2.0", ...(!notification && { id }), method, ...(params && { params }) }),
+      signal: controller.signal,
+    });
+    status = response.status;
+    if (!response.ok) {
+      await response.body?.cancel();
+      throw new Error(`Parallel HTTP ${status}`);
+    }
+    if (notification) { await response.body?.cancel(); return; }
+    const message = await mcpResponse(response, id);
+    if (message.jsonrpc !== "2.0" || message.id !== id) throw new Error("Invalid MCP response");
+    if (message.error) throw new Error(`Parallel MCP: ${message.error.message || message.error.code}`);
+    if (!message.result) throw new Error("Missing MCP result");
+    if (method === "initialize") state.session = response.headers.get("mcp-session-id");
+    return message.result;
+  };
+  try {
+    if (!state.ready) {
+      const init = await rpc("initialize", {
+        protocolVersion: "2025-03-26", capabilities: {}, clientInfo: { name: "ferret", version: "1.0.0" },
+      });
+      if (init.protocolVersion !== "2025-03-26") throw new Error("Unsupported MCP protocol version");
+      state.protocol = init.protocolVersion;
+      await rpc("notifications/initialized", null, true);
+      const listing = await rpc("tools/list", {});
+      if (!listing.tools?.some(tool => tool.name === "web_search")) throw new Error("MCP web_search is unavailable");
+      state.ready = true;
+    }
+    const result = await rpc("tools/call", {
+      name: "web_search",
+      arguments: { objective: q, search_queries: [q], session_id: state.conversation,
+        model_name: env.MODEL || "deepseek-v4-flash" },
+    });
+    if (result.isError) throw new Error("Parallel search tool failed");
+    const data = result.structuredContent || JSON.parse((result.content || [])
+      .filter(block => block.type === "text").map(block => block.text).join("\n"));
+    if (!Array.isArray(data.results)) throw new Error("Invalid Parallel search results");
+    const results = data.results.filter(item => {
+      try { return /^https?:$/.test(new URL(item.url).protocol); } catch { return false; }
+    }).slice(0, n);
+    if (log) log.push({ step: "web_search", query: q.slice(0, 120), via: "parallel", status, cost: 0 });
+    return results.length ? results.map((item, i) =>
+      `${i + 1}. ${item.title || ""} - ${item.url}\n   ${(item.excerpts || []).join(" ")}`
+    ).join("\n") : "(no results)";
+  } catch (error) {
+    if (signal?.aborted) throw error;
+    if (log) log.push({ step: "web_search", query: q.slice(0, 120), via: "parallel", status, cost: 0, error: String(error).slice(0, 120) });
+    return `(search failed: ${error})`;
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener("abort", abort);
+  }
+}
+
+async function webSearch(q, env, n = 6, log = null, caches = {}, signal) {
+  const provider = searchProvider(env);
+  if (provider === "parallel") {
+    caches.parallel ||= { id: 0, conversation: crypto.randomUUID() };
+    return parallelSearch(q, env, n, log, caches.parallel, signal);
+  }
+  if (provider === "rapidapi") return rapidapiSearch(q, env, n, log);
+  if (log) log.push({ step: "web_search", query: q.slice(0, 120), via: provider, status: 0, cost: 0 });
+  return provider === "none" ? "(web search disabled)" : "(search failed: unknown SEARCH_PROVIDER)";
+}
+
+async function rapidapiSearch(q, env, n = 6, log = null) {
   try {
     const r = await fetch("https://google-search122.p.rapidapi.com/", {
       method: "POST",
@@ -269,7 +387,7 @@ const TOOLS = [
     type: "function",
     function: {
       name: "web_search",
-      description: "Google search. Use to find websites, domains, company info, or research any topic.",
+      description: "Search the web. Use to find websites, domains, company info, or research any topic.",
       parameters: {
         type: "object",
         properties: { query: { type: "string", description: "Search query" } },
@@ -281,7 +399,7 @@ const TOOLS = [
 
 // caches = { pages: Map<url, fullText>, searches: Map<query, results> } — per-request.
 // Returns { content, cached }; cached calls don't count against the fetch budget.
-async function execTool(name, args, env, log, caches) {
+async function execTool(name, args, env, log, caches, signal) {
   if (name === "web_search") {
     const q = (args.query || "").trim();
     const key = q.toLowerCase().replace(/\s+/g, " ");
@@ -289,7 +407,7 @@ async function execTool(name, args, env, log, caches) {
       if (log) log.push({ step: "web_search", query: q.slice(0, 120), via: "cache", status: 200, cost: 0 });
       return { content: "(note: you already ran this exact search — same results below, try a DIFFERENT query if these weren't enough)\n" + caches.searches.get(key), cached: true };
     }
-    const res = (await webSearch(q, env, 6, log)).slice(0, 10000);
+    const res = (await webSearch(q, env, 6, log, caches, signal)).slice(0, 10000);
     caches.searches.set(key, res);
     return { content: res, cached: false };
   }
@@ -327,17 +445,19 @@ async function execTool(name, args, env, log, caches) {
 }
 
 // --- DeepSeek API call with retry ---
-async function deepseek(payload, env) {
+async function deepseek(payload, env, signal) {
   for (let a = 0; a < 4; a++) {
     try {
       const r = await fetch("https://api.deepseek.com/chat/completions", {
         method: "POST",
         headers: { "Authorization": `Bearer ${env.DEEPSEEK_API_KEY}`, "content-type": "application/json" },
         body: JSON.stringify(payload),
+        signal,
       });
       if (!r.ok) throw new Error("deepseek " + r.status);
       return await r.json();
     } catch (e) {
+      if (signal?.aborted) throw e;
       if (a === 3) throw e;
       await new Promise(s => setTimeout(s, 2 ** a * 500));
     }
@@ -482,12 +602,12 @@ function buildSystemPrompt(userPrompt, schema) {
   if (schema) {
     sys += `\n\n${renderSchema(schema)}`;
   }
-  sys += `\n\nYou have two tools available:\n- fetch_page: fetch any URL and get its text content (handles proxying and JS rendering automatically; long pages can be paged through with the offset parameter — cached re-reads are free)\n- web_search: Google search\n\nUse them as needed to gather the information required. Don't repeat a search you already ran. Fetched pages end with a list of same-site links — use those to navigate to the page you need instead of guessing URLs. Be a problem solver: if a URL is dead, behind a login, or blocked, your goal is still the INFORMATION. Recover in this order: first find the live page on the SAME site (search "site:domain.com <topic>" or fetch the homepage and follow its links); only if the site itself doesn't have it, use another reliable source. Third-party sites (aggregators, review sites) are often OUTDATED for facts that change — pricing, plans, headcount — so verify on the company's own pages whenever reachable. A trustworthy secondary source beats giving up, but never beats the primary source. If your final answer includes URLs as data (a pricing page, a competitor's website), verify them when budget allows: fetch the page to confirm it is live and is what you claim — never output a guessed URL. If the task restricts scope (e.g. "check only this page", "do not search", "only do X"), follow that restriction EXACTLY — do not take extra steps beyond what was asked. When you have enough, return your final JSON response.`;
+  sys += `\n\nYou have two tools available:\n- fetch_page: fetch any URL and get its text content (handles proxying and JS rendering automatically; long pages can be paged through with the offset parameter — cached re-reads are free)\n- web_search: web search\n\nUse them as needed to gather the information required. Don't repeat a search you already ran. Fetched pages end with a list of same-site links — use those to navigate to the page you need instead of guessing URLs. Be a problem solver: if a URL is dead, behind a login, or blocked, your goal is still the INFORMATION. Recover in this order: first find the live page on the SAME site (search "site:domain.com <topic>" or fetch the homepage and follow its links); only if the site itself doesn't have it, use another reliable source. Third-party sites (aggregators, review sites) are often OUTDATED for facts that change — pricing, plans, headcount — so verify on the company's own pages whenever reachable. A trustworthy secondary source beats giving up, but never beats the primary source. If your final answer includes URLs as data (a pricing page, a competitor's website), verify them when budget allows: fetch the page to confirm it is live and is what you claim — never output a guessed URL. If the task restricts scope (e.g. "check only this page", "do not search", "only do X"), follow that restriction EXACTLY — do not take extra steps beyond what was asked. When you have enough, return your final JSON response.`;
   return sys;
 }
 
 // --- Main research loop ---
-async function research(input, env) {
+async function research(input, env, signal) {
   // Per-request override (clamped) — one deployed worker can serve both
   // light lookups and deep-research columns.
   const MAX = Math.min(20, Math.max(1, +input.max_fetches || +(env.MAX_FETCHES || 10)));
@@ -507,7 +627,9 @@ async function research(input, env) {
   const reserve = deadline ? Math.min(12000, Math.floor(deadline * 0.4)) : 0;
   const timeUp = () => deadline > 0 && Date.now() - started > deadline - reserve;
 
-  const systemPrompt = buildSystemPrompt(input.prompt, input.schema);
+  const systemPrompt = buildSystemPrompt(input.prompt, input.schema)
+    + (searchProvider(env) === "none" ? "\nWeb search is disabled. Use fetch_page only; do not call web_search." : "");
+  const tools = searchProvider(env) === "none" ? TOOLS.filter(tool => tool.function.name !== "web_search") : TOOLS;
 
   let msgs = [
     { role: "system", content: systemPrompt },
@@ -543,7 +665,7 @@ async function research(input, env) {
   try {
 
   agentLog.push({ step: "llm_call", round: 1, note: "initial" });
-  let d = await deepseek({ model: MODEL, max_tokens: MT, messages: msgs, tools: TOOLS }, env);
+  let d = await deepseek({ model: MODEL, max_tokens: MT, messages: msgs, tools }, env, signal);
   addUsage(d);
 
   for (let round = 0; round < MAX + 2; round++) {
@@ -566,7 +688,8 @@ async function research(input, env) {
           });
           continue;
         }
-        const { content, cached } = await execTool(tc.function.name, a, env, agentLog, caches);
+        const { content, cached } = await execTool(tc.function.name, a, env, agentLog, caches, signal);
+        signal?.throwIfAborted();
         msgs.push({ role: "tool", tool_call_id: tc.id, content });
         if (!cached) fetches++;
       }
@@ -579,10 +702,10 @@ async function research(input, env) {
         msgs.push({ role: "user", content: "You have used all your tool calls. You MUST now return your final JSON response using the information you have gathered. Do NOT call any more tools. Output ONLY the JSON object." });
         p.response_format = { type: "json_object" };
       } else {
-        p.tools = TOOLS;
+        p.tools = tools;
       }
       agentLog.push({ step: "llm_call", round: round + 2, note: wrapUp ? (timeUp() ? "final (deadline)" : "final (tool budget spent)") : "continuing" });
-      d = await deepseek(p, env);
+      d = await deepseek(p, env, signal);
       addUsage(d);
       continue;
     }
@@ -598,7 +721,7 @@ async function research(input, env) {
       agentLog.push({ step: "empty_retry", raw_content: raw.slice(0, 200) });
       msgs.push(m);
       msgs.push({ role: "user", content: "Your last message was empty or not valid JSON. Output the complete JSON object now, using the information you have already gathered. Output ONLY the JSON object." });
-      d = await deepseek({ model: MODEL, max_tokens: MT, messages: msgs, response_format: { type: "json_object" } }, env);
+      d = await deepseek({ model: MODEL, max_tokens: MT, messages: msgs, response_format: { type: "json_object" } }, env, signal);
       addUsage(d);
       continue;
     }
@@ -613,7 +736,7 @@ async function research(input, env) {
         agentLog.push({ step: "schema_retry", issues: issues.slice(0, 20) });
         msgs.push(m);
         msgs.push({ role: "user", content: `Your JSON has these problems:\n${issues.map(i => "- " + i).join("\n")}\n\nReturn the COMPLETE corrected JSON object with every required field present and every value matching its declared type (numbers as numbers, not strings). If data for a field is truly unavailable, use your best inference or "not found" — but the field must be present and correctly typed. Output ONLY the JSON object.` });
-        d = await deepseek({ model: MODEL, max_tokens: MT, messages: msgs, response_format: { type: "json_object" } }, env);
+        d = await deepseek({ model: MODEL, max_tokens: MT, messages: msgs, response_format: { type: "json_object" } }, env, signal);
         addUsage(d);
         continue;
       }
@@ -663,7 +786,7 @@ export default {
     if (!input.prompt) return jsonResp({ error: "prompt is required" }, 400);
 
     try {
-      const out = await research(input, env);
+      const out = await research(input, env, request.signal);
       return jsonResp(out);
     } catch (e) {
       return jsonResp({ error: String(e).slice(0, 500), agent_log: [] }, 200);

@@ -1,16 +1,20 @@
 name = "ferret"
 main = "worker.js"
 compatibility_date = "2024-11-01"
+compatibility_flags = ["enable_request_signal"] # cancel MCP/LLM requests when the client disconnects
 
 [vars]
 MODEL = "deepseek-v4-flash"
+# Search auto-selects RapidAPI when RAPIDAPI_KEY is set, otherwise keyless Parallel.
+# SEARCH_PROVIDER = "parallel"   # explicit override: parallel, rapidapi, or none
+# SEARCH_TIMEOUT_MS = "15000"   # Parallel search + discovery timeout, 1–60000 ms
 MAX_FETCHES = "10"   # tool-call budget per request — see AGENT.md "Tuning MAX_FETCHES" before changing
 MAX_TOKENS = "8000"   # LLM output cap — large schemas (arrays of objects) need headroom or the JSON truncates
 DEFAULT_DEADLINE_MS = "120000"   # agent wraps up by this unless the request overrides deadline_ms
 
 # Secrets (set via wrangler secret put):
 #   wrangler secret put DEEPSEEK_API_KEY
-#   wrangler secret put RAPIDAPI_KEY
+#   wrangler secret put RAPIDAPI_KEY        # optional — preserves RapidAPI search
 #   wrangler secret put SCRAPE_DO_TOKEN       # optional — fallback scraper
 #   wrangler secret put CF_ACCOUNT_ID         # optional — CF Browser Rendering
 #   wrangler secret put CF_API_TOKEN          # optional — CF Browser Rendering

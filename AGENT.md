@@ -25,7 +25,7 @@ Account ID is needed for Browser Rendering (optional). It's in the `wrangler who
 
 The user needs at minimum:
 - **LLM API key** — from DeepSeek, OpenRouter, OpenAI, Groq, Together, or Mistral. See the LLM swap table below for URLs.
-- **Search API key** — from RapidAPI. Sign up at rapidapi.com, subscribe to a Google Search provider, get the key from Apps → default-application → Authorization.
+- **Search needs no key by default** — Parallel Search MCP is used when `SEARCH_PROVIDER` and `RAPIDAPI_KEY` are unset. Existing `RAPIDAPI_KEY` deployments keep RapidAPI. Set `SEARCH_PROVIDER` to `parallel`, `rapidapi`, or `none` to choose explicitly. RapidAPI requires its key; a failed explicit choice never falls back.
 
 Optional:
 - **scrape.do token** — sign up at scrape.do, free tier gives 1,000 requests for testing
@@ -37,13 +37,13 @@ Optional:
 # Create .dev.vars for local development
 cat > .dev.vars << 'EOF'
 DEEPSEEK_API_KEY=sk-your-key
-RAPIDAPI_KEY=your-rapidapi-key
+# Optional: RAPIDAPI_KEY=your-rapidapi-key (keeps RapidAPI as the automatic choice)
 SCRAPE_DO_TOKEN=your-token
 EOF
 
 # For production, use wrangler secret put:
 wrangler secret put DEEPSEEK_API_KEY
-wrangler secret put RAPIDAPI_KEY
+wrangler secret put RAPIDAPI_KEY         # optional — RapidAPI search only
 wrangler secret put SCRAPE_DO_TOKEN
 wrangler secret put WORKER_AUTH          # optional — protect the endpoint
 ```
@@ -208,15 +208,17 @@ When you swap the LLM for a user, do this retuning unprompted and tell them what
 
 ## How to Swap the Search Provider
 
-Replace the `webSearch()` function. It must:
+`webSearch()` dispatches to Parallel Search MCP or `rapidapiSearch()`. It chooses `SEARCH_PROVIDER` first, then preserves a configured `RAPIDAPI_KEY`, otherwise uses Parallel without credentials. `none` disables search. The Parallel client uses native `fetch` with Streamable HTTP, initializes/discovers once per research request, reuses its MCP and conversation sessions, and passes `MODEL` as the model identifier. It formats titles, URLs and excerpts into the existing text contract. It does not replace page fetching. `SEARCH_TIMEOUT_MS` bounds each Parallel search including discovery (default 15000, range 1–60000 ms); caller cancellation aborts it.
+
+To add a provider, add a helper and a branch in the dispatcher. Keep existing configured choices and search-disable controls. Do not change to another provider after a selected provider fails. Provider helpers must:
 1. Accept `(query, env, n, log)` — query string, env bindings, max results, agent log array
 2. Return a **string** of search results (the LLM reads this as plain text)
 3. Push a log entry to `log` with `{ step: "web_search", query, via, status, cost }`
 
-### Current implementation (RapidAPI)
+### RapidAPI helper (selected explicitly or by a saved key)
 
 ```js
-async function webSearch(q, env, n = 6, log = null) {
+async function rapidapiSearch(q, env, n = 6, log = null) {
   const r = await fetch("https://google-search122.p.rapidapi.com/", {
     method: "POST",
     headers: {
@@ -382,7 +384,9 @@ async function zenrowsFetch(url, env, log) {
 | Variable | Used By | Required |
 |----------|---------|----------|
 | `DEEPSEEK_API_KEY` | `deepseek()` | Yes (or swap LLM) |
-| `RAPIDAPI_KEY` | `webSearch()` | Yes (or swap search) |
+| `RAPIDAPI_KEY` | `rapidapiSearch()` | Only for RapidAPI; preserves it as the automatic choice |
+| `SEARCH_PROVIDER` | `webSearch()` | No (`parallel`, `rapidapi`, `none`; unset selects RapidAPI if keyed, otherwise Parallel) |
+| `SEARCH_TIMEOUT_MS` | `parallelSearch()` | No (default: 15000; 1–60000 ms) |
 | `SCRAPE_DO_TOKEN` | `scrapeDo()` | No (fallback scraper) |
 | `CF_ACCOUNT_ID` | `cfBrowserFetch()` | No (CF Browser Rendering) |
 | `CF_API_TOKEN` | `cfBrowserFetch()` | No (CF Browser Rendering) |
