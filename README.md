@@ -18,7 +18,7 @@ A simple, open-source web research agent. Send a prompt + JSON Schema, get struc
 
 **You need four things:**
 - A **Scraping API** (or just use Cloudflare's free native fetch)
-- A **SERP API** (search engine — Google, Bing, Exa, Yandex, etc.)
+- **Web search** (free Parallel Search MCP by default, or your RapidAPI key)
 - An **LLM API** (any provider with tool calling)
 - A **Cloudflare account** (free tier works)
 
@@ -98,9 +98,19 @@ Get an API key from any OpenAI-compatible provider:
 
 If you use a provider other than DeepSeek, see [AGENT.md](AGENT.md) to swap the URL (one line change).
 
-### 3. Search API key
+### 3. Web search (no search API key needed)
 
-Get a RapidAPI key for Google Search:
+[Parallel Search MCP](https://docs.parallel.ai/integrations/mcp/search-mcp) supplies free web search powered by Fast mode, with no account or API key. It is selected automatically when neither `SEARCH_PROVIDER` nor `RAPIDAPI_KEY` is configured. Existing deployments with a `RAPIDAPI_KEY` keep using RapidAPI.
+
+To choose explicitly, set a Worker variable in `wrangler.toml` (or `.dev.vars` locally):
+
+```toml
+SEARCH_PROVIDER = "parallel"  # parallel, rapidapi, or none
+```
+
+`none` removes search from the model's tools and blocks search execution. Unknown provider names return an error. Provider failures never silently switch to another provider. Parallel requests time out after 15 seconds, configurable with `SEARCH_TIMEOUT_MS` (1–60000 ms), and are cancelled if the caller aborts the request. Free anonymous search has service limits; failures are returned as tool results and recorded in `agent_log`. Page fetching still uses the existing native/Browser Rendering/scrape.do cascade.
+
+For Google Search instead, set `SEARCH_PROVIDER = "rapidapi"` and get a RapidAPI key:
 
 1. Sign up at [rapidapi.com](https://rapidapi.com/)
 2. Subscribe to one of the [search providers](#rapidapi-providers) listed below
@@ -114,7 +124,8 @@ cd Ferret
 
 # Set your secrets (LLM API — works with any OpenAI-compatible provider)
 echo "DEEPSEEK_API_KEY=sk-your-key" > .dev.vars
-echo "RAPIDAPI_KEY=your-rapidapi-key" >> .dev.vars
+# No search key needed for Parallel. For RapidAPI instead:
+# echo "RAPIDAPI_KEY=your-rapidapi-key" >> .dev.vars
 
 # Optional (fallback scraping — see scrape.do pricing below)
 echo "SCRAPE_DO_TOKEN=your-token" >> .dev.vars
@@ -134,7 +145,7 @@ Local development reads from `.dev.vars`. For production, set secrets via Wrangl
 
 ```bash
 wrangler secret put DEEPSEEK_API_KEY
-wrangler secret put RAPIDAPI_KEY
+wrangler secret put RAPIDAPI_KEY          # optional — only for RapidAPI search
 wrangler secret put SCRAPE_DO_TOKEN        # optional
 wrangler secret put WORKER_AUTH            # strongly recommended — see Production Hardening
 ```
@@ -288,7 +299,9 @@ Free-tier Workers allow **50 subrequests per invocation**. A worst-case run (10 
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `DEEPSEEK_API_KEY` | Yes | LLM API key. Ships with DeepSeek but works with any OpenAI-compatible provider (OpenRouter, OpenAI, Groq, Together, Mistral) — just swap the URL in `worker.js`. See [AGENT.md](AGENT.md). |
-| `RAPIDAPI_KEY` | Yes | RapidAPI key for Google Search |
+| `RAPIDAPI_KEY` | No | RapidAPI key for Google Search; when set, preserves RapidAPI as the automatic provider |
+| `SEARCH_PROVIDER` | No | Explicit search choice: `parallel`, `rapidapi`, or `none`. Unset uses RapidAPI when keyed, otherwise Parallel |
+| `SEARCH_TIMEOUT_MS` | No | Parallel search timeout including discovery; default 15000, range 1–60000 ms |
 | `SCRAPE_DO_TOKEN` | No | scrape.do token (fallback scraping) |
 | `CF_ACCOUNT_ID` | No | Cloudflare account ID (Browser Rendering) |
 | `CF_API_TOKEN` | No | Cloudflare API token with Browser Rendering permission |
@@ -305,7 +318,7 @@ Free-tier Workers allow **50 subrequests per invocation**. A worst-case run (10 
 
 ## Search API Providers
 
-Ferret uses RapidAPI Google Search by default. Here are providers ranked by cost:
+Ferret uses free, keyless Parallel Search MCP for unconfigured installations. A saved `RAPIDAPI_KEY` preserves RapidAPI Google Search, and `SEARCH_PROVIDER` selects explicitly. The providers below remain alternatives for Google SERP results and other search features:
 
 ### RapidAPI Providers
 
@@ -369,12 +382,22 @@ Note: JS rendering (`render=true`) costs 5 credits per call, super mode costs 25
 - Limited models to choose from
 
 ### Ferret (self-hosted)
-- **Search:** $0.04-$1.00 per 1K searches depending on provider
+- **Search:** Free anonymous Parallel Search MCP within service limits, or provider-specific pricing for RapidAPI and other APIs
 - **Page fetching:** Usually free (native fetch). Fallback scraping ~1-25 credits when needed
 - **LLM:** DeepSeek at ~$0.14/M input tokens, $0.28/M output tokens
 - **Hosting:** Cloudflare Workers free tier (100K requests/day) or $5/mo paid
 
 Typical cost per research call: **$0.001 - $0.01** depending on how many searches/pages the agent needs.
+
+## Development checks
+
+Run the deterministic Worker integration tests with Node.js 22 or newer:
+
+```bash
+node --test tests/search.test.mjs
+```
+
+They script the model and mock provider responses while exercising the Worker entry point, search selection, MCP discovery and execution, result consumption, provider errors, cancellation, and search controls. No API keys are needed. `./test.sh` remains the live smoke test for a running Worker and requires a configured LLM.
 
 ## License
 
